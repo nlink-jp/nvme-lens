@@ -14,6 +14,12 @@ public enum Command: Equatable, Sendable {
     case status(serial: String?, format: OutputFormat)
     /// `history --device <serial> --since <period>` — recorded history.
     case history(serial: String, since: String, metric: Metric, format: OutputFormat)
+    /// `sample` — take one reading, persist it, report any alerts.
+    ///
+    /// The menu-bar application does this on a timer; exposing it as a
+    /// subcommand lets the store be populated (and the whole path exercised)
+    /// before the GUI exists, and suits a launchd-driven collector.
+    case sample(format: OutputFormat)
     /// `--version` — print the version and exit.
     case version
     /// `--help`, or anything we could not parse.
@@ -80,6 +86,9 @@ public enum CommandLineRouter {
             let flags = try Flags(
                 parsing: Array(arguments.dropFirst()), allowed: ["--format", "--device"])
             return .status(serial: flags["--device"], format: try flags.format())
+        case "sample":
+            let flags = try Flags(parsing: Array(arguments.dropFirst()), allowed: ["--format"])
+            return .sample(format: try flags.format())
         case "history":
             let flags = try Flags(
                 parsing: Array(arguments.dropFirst()),

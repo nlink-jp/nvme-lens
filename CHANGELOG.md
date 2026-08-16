@@ -52,3 +52,31 @@ drive's unusual 99% available-spare threshold.
   menu-bar UI. `history` and the no-argument launch currently exit 69.
 - `icon.icns` (Phase 3). `make build-app` assembles the bundle without it and
   says so.
+
+### Added (collection and alerting)
+
+- **SQLite history store** (`~/Library/Application Support/nvme-lens/history.sqlite`):
+  per-sample temperature, per-sample wear snapshots, WAL mode, retention pruning
+  for temperature (wear snapshots are kept — they are small and their long-term
+  trend is the point).
+- **Alert evaluation**, pure and injected with `now`, covering the four classes:
+  sustained hotspot temperature, endurance degradation, any increase in media
+  errors, and an abnormal power-cycle rate.
+- **Minimal TOML reader** for `~/.config/nvme-lens/config.toml`. Unsupported
+  syntax is rejected rather than ignored: a threshold silently dropped is a
+  monitor that silently stops warning. A malformed file is an error, not a
+  fallback to defaults.
+- `nvme-lens sample` — one collection pass: read, persist, evaluate. Exits 1 when
+  it produced alerts so a scheduled collector can notice without parsing output.
+  The menu-bar app will drive the same path on a timer.
+- `nvme-lens history --device <serial> --since <30m|12h|7d|4w>` with temperature
+  summary and wear delta, including power cycles per powered hour.
+- 80 unit tests, still with no device and no smartmontools required.
+
+### Fixed
+
+- Available-spare alerting no longer fires on a healthy drive. Available Spare
+  Threshold is a vendor choice — 5%, 10% and **99%** were all observed on one
+  machine — so a bare "within N points of the threshold" test warned about
+  Apple's internal SSD while its spare was still 100%. Proximity now only counts
+  once depletion has actually begun. Found by running against real hardware.

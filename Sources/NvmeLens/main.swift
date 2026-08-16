@@ -18,7 +18,9 @@ let usage = """
       nvme-lens                                   Launch the menu-bar application
       nvme-lens list [--format json|table]        List drives, monitorable or not
       nvme-lens status [--device <serial>]        Current-value snapshot
+      nvme-lens sample [--format json|table]      Record one sample, report alerts
       nvme-lens history --device <serial> --since <period> [--metric temp|wear]
+                                                  period: 30m, 12h, 7d, 4w
       nvme-lens --version                         Print the version
       nvme-lens --help                            Print this message
     """
@@ -49,10 +51,41 @@ do {
             }
         }
         emit(format == .json ? try Renderer.json(reports) : Renderer.table(reports))
-    case .history:
-        // TODO(Phase 2): needs the SQLite store and background sampling.
-        emit("history is not implemented yet", toStandardError: true)
-        exit(69)  // EX_UNAVAILABLE
+    case .sample(let format):
+        let outcome = try Sampler(store: try HealthStore(), configuration: try Configuration.load())
+            .run(records: IOKitDeviceReader.readAll())
+        if format == .json {
+            emit(try Renderer.json(sampleSummary: outcome))
+        } else {
+            emit(Renderer.table(sampleSummary: outcome))
+        }
+        // A sample that produced alerts exits non-zero so a scheduled collector
+        // can notice without parsing output.
+        if !outcome.alerts.isEmpty { exit(1) }
+    case .history(let serial, let since, let metric, let format):
+        let store = try HealthStore()
+        let cutoff = Date().addingTimeInterval(-Double(try PeriodParser.seconds(since)))
+        let temperature =
+            metric == .wear ? nil : try store.temperatureSummary(serial: serial, since: cutoff)
+        let wear = metric == .temp ? nil : try store.wearDelta(serial: serial, since: cutoff)
+        if temperature == nil && wear == nil {
+            // Distinguish "nothing happened" from "nothing was ever recorded":
+            // an empty result that looks like a healthy answer is worse than an
+            // explicit one.
+            let known = try store.knownSerials()
+            let hint =
+                known.contains(serial)
+                ? "no samples for '\(serial)' in that window"
+                : "no drive with serial '\(serial)' has ever been sampled"
+                    + (known.isEmpty ? " (the store is empty — run 'nvme-lens sample')" : "")
+            emit("error: \(hint)", toStandardError: true)
+            exit(69)
+        }
+        if format == .json {
+            emit(try Renderer.json(temperature: temperature, wear: wear))
+        } else {
+            emit(Renderer.table(temperature: temperature, wear: wear))
+        }
     }
 } catch {
     emit("error: \(error)", toStandardError: true)

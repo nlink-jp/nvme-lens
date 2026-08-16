@@ -144,6 +144,84 @@ public enum Renderer {
         return lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
     }
 
+    // MARK: - sample
+
+    struct SampleSummary: Codable {
+        var recorded: [String]
+        var alerts: [Alert]
+        var prunedTemperatureRows: Int
+    }
+
+    public static func json(sampleSummary outcome: Sampler.Outcome) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let summary = SampleSummary(
+            recorded: outcome.recorded, alerts: outcome.alerts,
+            prunedTemperatureRows: outcome.prunedTemperatureRows)
+        return String(decoding: try encoder.encode(summary), as: UTF8.self)
+    }
+
+    public static func table(sampleSummary outcome: Sampler.Outcome) -> String {
+        var lines = ["recorded \(outcome.recorded.count) drive(s): \(outcome.recorded.joined(separator: ", "))"]
+        if outcome.prunedTemperatureRows > 0 {
+            lines.append("pruned \(outcome.prunedTemperatureRows) expired temperature row(s)")
+        }
+        if outcome.alerts.isEmpty {
+            lines.append("no alerts")
+        } else {
+            for alert in outcome.alerts {
+                lines.append(
+                    "[\(alert.severity.rawValue.uppercased())] \(alert.model) (\(alert.serialNumber)) \(alert.kind): \(alert.message)"
+                )
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - history
+
+    struct HistoryReport: Codable {
+        var temperature: HealthStore.TemperatureSummary?
+        var wear: HealthStore.WearDelta?
+    }
+
+    public static func json(
+        temperature: HealthStore.TemperatureSummary?, wear: HealthStore.WearDelta?
+    ) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.dateEncodingStrategy = .iso8601
+        return String(
+            decoding: try encoder.encode(HistoryReport(temperature: temperature, wear: wear)),
+            as: UTF8.self)
+    }
+
+    public static func table(
+        temperature: HealthStore.TemperatureSummary?, wear: HealthStore.WearDelta?
+    ) -> String {
+        var lines: [String] = []
+        if let temperature {
+            lines.append("temperature over \(temperature.samples) sample(s)")
+            lines.append(
+                String(
+                    format: "  hotspot  min %dC  max %dC  avg %.1fC", temperature.minCelsius,
+                    temperature.maxCelsius, temperature.averageCelsius))
+        }
+        if let wear {
+            lines.append("wear delta")
+            lines.append("  percentage used  +\(wear.percentageUsedDelta)")
+            lines.append("  written          +\(format(bytes: UInt64(max(0, wear.dataUnitsWrittenDelta)) &* 512_000))")
+            lines.append("  powered          +\(wear.powerOnHoursDelta) h")
+            lines.append("  power cycles     +\(wear.powerCyclesDelta)")
+            if let rate = wear.powerCyclesPerHour {
+                lines.append(String(format: "  cycles per hour  %.2f", rate))
+            }
+            lines.append("  unsafe shutdowns +\(wear.unsafeShutdownsDelta)")
+            lines.append("  media errors     +\(wear.mediaErrorsDelta)")
+        }
+        return lines.isEmpty ? "no history" : lines.joined(separator: "\n")
+    }
+
     static func format(bytes: UInt64) -> String {
         let terabytes = Double(bytes) / 1_000_000_000_000
         if terabytes >= 1 { return String(format: "%.2f TB", terabytes) }

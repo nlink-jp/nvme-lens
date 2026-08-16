@@ -19,7 +19,8 @@ let package = Package(
         .target(
             name: "NvmeLensCore",
             dependencies: ["CNvmeSmart"],
-            path: "Sources/NvmeLensCore"
+            path: "Sources/NvmeLensCore",
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         // CFPlugIn COM against IOKit's NVMe SMART interface is awkward from
         // Swift, so the COM dance is isolated here (ADR-0001).
