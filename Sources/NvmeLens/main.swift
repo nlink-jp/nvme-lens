@@ -33,9 +33,7 @@ do {
     case .help:
         emit(usage)
     case .menuBar:
-        // TODO(Phase 2): launch the menu-bar application.
-        emit("menu-bar application is not implemented yet", toStandardError: true)
-        exit(69)  // EX_UNAVAILABLE
+        MenuBarApp.run(store: try HealthStore(), configuration: try Configuration.load())
     case .list(let format):
         // list shows every drive, including the ones that cannot be monitored:
         // a drive missing from the list reads as broken or undetected.

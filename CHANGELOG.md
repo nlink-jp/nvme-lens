@@ -69,12 +69,42 @@
   Apple's internal SSD while its spare was still 100%. Proximity now only counts
   once depletion has actually begun. Found by running against real hardware.
 
+### Added (menu bar)
+
+- **Menu-bar application** (AppKit `NSStatusItem` + `NSMenu`). The title is the
+  hottest hotspot across monitored drives, prefixed `!` on a warning and `!!` on
+  a critical, so the state is legible without opening the menu. Each drive gets
+  a row; unmonitorable drives stay listed with their reason.
+- **Timer-driven sampling** on the configured interval, added to the run loop in
+  `.common` mode so an open menu does not stall collection. It drives the same
+  `Sampler` as the `sample` subcommand, so GUI and CLI histories cannot diverge.
+- **macOS notifications** for alerts, carrying a trigger so a notification is not
+  dropped when the app exits first. Authorization is requested on the first real
+  alert rather than at launch: killing the process while that prompt is
+  unanswered pins the permission to denied, and launch-then-quit is exactly what
+  a smoke test does.
+- The version is shown in the menu.
+- A failing store no longer blanks the display — the readings are still valid,
+  and the menu says the history is not being written.
+
+### Fixed
+
+- The menu-bar app crashed on launch outside an `.app` bundle.
+  `UNUserNotificationCenter.current()` raises
+  `bundleProxyForCurrentProcess is nil` when the process has no bundle, which is
+  every `swift build` run. UserNotifications is now skipped entirely when
+  `Bundle.main.bundleIdentifier` is nil, and the menu says
+  `notifications off: running unbundled` rather than staying quiet — silently not
+  notifying is indistinguishable from nothing being wrong. Caught by a launch
+  smoke test; all 87 unit tests passed throughout.
+
 ### Not yet implemented
 
-- The menu-bar UI and the timer that drives sampling automatically. Running with
-  no arguments still exits 69; use `nvme-lens sample` (manually or from launchd)
-  until it lands.
-- Delivery of alerts as macOS notifications. They are currently returned and
-  printed by `sample`.
 - `icon.icns` (Phase 3). `make build-app` assembles the bundle without it and
   says so.
+
+### Not yet verified
+
+- The bundled `.app` path, where notifications are actually enabled. The
+  unbundled binary is verified to launch, sample and terminate cleanly; running
+  `make build-app` and exercising the signed bundle remains to be done.
