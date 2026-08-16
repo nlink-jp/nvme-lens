@@ -1,0 +1,22 @@
+# Build artifacts
+dist/
+.build/
+
+# Swift
+*.xcodeproj
+.swiftpm/
+
+# Credentials
+.env
+
+# Agent working directory
+.claude/
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
