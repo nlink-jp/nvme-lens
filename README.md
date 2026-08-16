@@ -8,8 +8,9 @@ safety. Both come from the same NVMe SMART / Health Information log, and neither
 is continuously visible through stock macOS tooling: `diskutil` reports only a
 binary Verified / Not Supported, and `smartctl` gives a snapshot with no history.
 
-> **Status: pre-release.** The project is scaffolded; the SMART reader, the
-> store, and the menu-bar UI are not implemented yet. See
+> **Status: pre-release.** Reading, history and alerting work from the CLI. The
+> menu-bar UI and automatic sampling are not built yet — run `nvme-lens sample`
+> (by hand or from launchd) to collect in the meantime. See
 > [the RFP](docs/en/nvme-lens-rfp.md) for the plan.
 
 ## Before you install: which drives can be monitored
@@ -51,7 +52,9 @@ reads Temperature Sensor 1..8 individually and judges on the maximum.
 nvme-lens                                   Launch the menu-bar application
 nvme-lens list [--format json|table]        List drives, monitorable or not
 nvme-lens status [--device <serial>]        Current-value snapshot
+nvme-lens sample [--format json|table]      Record one sample, report alerts
 nvme-lens history --device <serial> --since <period> [--metric temp|wear]
+                                            period: 30m, 12h, 7d, 4w
 nvme-lens --version                         Print the version
 nvme-lens --help                            Print this message
 ```

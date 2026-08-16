@@ -6,9 +6,10 @@ A macOS menu-bar application that continuously monitors NVMe SSD temperature and
 endurance, records them, and notifies on threshold breaches. Single binary: no
 arguments launches the menu-bar app, anything else is a CLI subcommand.
 
-**Current state: reading works.** `list` and `status` read real SMART data
-through IOKit and render JSON or a table. The SQLite store, background sampling,
-notifications, and the menu-bar UI are not written yet.
+**Current state: reading, history and alerting work from the CLI.** `list`,
+`status`, `sample` and `history` are implemented. The menu-bar UI, the timer that
+samples automatically, and delivery of alerts as macOS notifications are not
+written yet — `sample` returns and prints them instead.
 
 ## Build and test
 
@@ -35,11 +36,15 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   ControllerIdentity.swift← Identify Controller parser (serial, model, WCTEMP)
   DriveInventory.swift    ← pure classification: monitored vs why not
   IOKitDeviceReader.swift ← the only type that touches the device
+  AlertEvaluator.swift    ← pure alerting; `now` is injected
+  HealthStore.swift       ← SQLite history (temperature + wear snapshots)
+  Sampler.swift           ← one pass: read → persist → evaluate
+  Configuration.swift     ← thresholds; TOMLLite.swift is the reader
   Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
 Sources/NvmeLens/
   main.swift              ← thin entry point: parse, dispatch, exit
-Tests/NvmeLensCoreTests/  ← 41 tests
+Tests/NvmeLensCoreTests/  ← 80 tests
 docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; ADRs share a basename)
 scripts/                  ← codesign / notarize (copied from org templates)
 Info.plist                ← ${APP_NAME}/${BUNDLE_ID}/${VERSION} substituted by make
@@ -69,6 +74,13 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   self-tests, no arbitrary admin commands. The tool is read-only by design.
 - **Root is not required** — verified on real hardware. If something seems to
   need it, the diagnosis is wrong; do not add a privileged helper.
+- **Available Spare Threshold is a vendor choice, not a small number.** 5%, 10%
+  and 99% were all observed on one machine, so "spare is within N points of the
+  threshold" is meaningless on its own — require that depletion actually began
+  (spare < 100%) before proximity counts. This shipped as a false positive on the
+  internal SSD and was caught only by running against real hardware.
+- **The evaluator must read its baseline before the sampler writes the new row**,
+  or every delta is zero forever.
 - `icon.icns` does not exist yet; `make build-app` bundles without it and prints
   a note. Adding it is a Phase 3 task.
 

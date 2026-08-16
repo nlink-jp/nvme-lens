@@ -8,8 +8,10 @@ macOS メニューバーアプリ。
 どちらも継続的に見られません。`diskutil` は Verified / Not Supported の二値だけ、
 `smartctl` は履歴の残らないスナップショットです。
 
-> **状態: プレリリース。** 骨格のみが存在し、SMART リーダー・ストア・メニューバー UI は
-> 未実装です。計画は [RFP](docs/ja/nvme-lens-rfp.ja.md) を参照してください。
+> **状態: プレリリース。** 読み取り・履歴・アラート判定は CLI から動作します。
+> メニューバー UI と自動サンプリングは未実装で、当面は `nvme-lens sample` を
+> 手動または launchd から実行して収集します。計画は
+> [RFP](docs/ja/nvme-lens-rfp.ja.md) を参照してください。
 
 ## インストール前に: 監視できるドライブ
 
@@ -48,7 +50,9 @@ Temperature Sensor 1..8 を個別に読み、最大値で判定します。
 nvme-lens                                   メニューバーアプリを起動
 nvme-lens list [--format json|table]        ドライブ一覧（監視不可のものも表示）
 nvme-lens status [--device <serial>]        現在値のスナップショット
+nvme-lens sample [--format json|table]      1 回計測して記録し、アラートを報告
 nvme-lens history --device <serial> --since <期間> [--metric temp|wear]
+                                            期間: 30m, 12h, 7d, 4w
 nvme-lens --version                         版数を表示
 nvme-lens --help                            このメッセージを表示
 ```

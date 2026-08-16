@@ -17,8 +17,6 @@
   (64 `EX_USAGE`, 69 `EX_UNAVAILABLE`).
 - Version resolution that falls back to a development marker rather than
   reporting an unsubstituted Makefile placeholder.
-- 19 unit tests covering routing, version resolution, and error-message
-  distinctness. They require neither an NVMe device nor smartmontools.
 - [RFP](docs/en/nvme-lens-rfp.md) and
   [ADR-0001](docs/en/adr/0001-iokit-direct-smart-access.md) (SMART is read
   through IOKit, never by shelling out to `smartctl`), both mirrored in
@@ -40,20 +38,10 @@
   because it is the fact a user can act on.
 - `list` and `status` implemented, JSON and table output. Disk images are
   excluded from `list` by default.
-- 41 unit tests; all parsing and classification is covered without a device.
 
-Every field was cross-checked against `smartctl` on three drives (internal Apple
-Fabric, two Thunderbolt-attached NVMe) and agrees exactly, including the internal
-drive's unusual 99% available-spare threshold.
-
-### Not yet implemented
-
-- The SQLite store, background sampling, threshold notifications, and the
-  menu-bar UI. `history` and the no-argument launch currently exit 69.
-- `icon.icns` (Phase 3). `make build-app` assembles the bundle without it and
-  says so.
-
-### Added (collection and alerting)
+  Every field was cross-checked against `smartctl` on three drives (internal
+  Apple Fabric, two Thunderbolt-attached NVMe) and agrees exactly, including the
+  internal drive's unusual 99% available-spare threshold.
 
 - **SQLite history store** (`~/Library/Application Support/nvme-lens/history.sqlite`):
   per-sample temperature, per-sample wear snapshots, WAL mode, retention pruning
@@ -80,3 +68,13 @@ drive's unusual 99% available-spare threshold.
   machine — so a bare "within N points of the threshold" test warned about
   Apple's internal SSD while its spare was still 100%. Proximity now only counts
   once depletion has actually begun. Found by running against real hardware.
+
+### Not yet implemented
+
+- The menu-bar UI and the timer that drives sampling automatically. Running with
+  no arguments still exits 69; use `nvme-lens sample` (manually or from launchd)
+  until it lands.
+- Delivery of alerts as macOS notifications. They are currently returned and
+  printed by `sample`.
+- `icon.icns` (Phase 3). `make build-app` assembles the bundle without it and
+  says so.
