@@ -6,9 +6,9 @@ A macOS menu-bar application that continuously monitors NVMe SSD temperature and
 endurance, records them, and notifies on threshold breaches. Single binary: no
 arguments launches the menu-bar app, anything else is a CLI subcommand.
 
-**Current state: scaffold.** Routing, version handling, the build, and the test
-harness work. The IOKit SMART reader, the SQLite store, sampling, notifications,
-and the UI are not written yet.
+**Current state: reading works.** `list` and `status` read real SMART data
+through IOKit and render JSON or a table. The SQLite store, background sampling,
+notifications, and the menu-bar UI are not written yet.
 
 ## Build and test
 
@@ -27,12 +27,19 @@ puts output under `dist/`.
 ## Structure
 
 ```
-Sources/NvmeLensCore/     ← all logic; unit-testable, no device access
+Sources/CNvmeSmart/       ← C shim: CFPlugIn COM against IONVMeSMARTInterface
+  include/CNvmeSmart.h    ← buffers in, IOReturn status out; no parsing here
+Sources/NvmeLensCore/     ← all logic; the parsers need no device
   CommandLineRouter.swift ← argv → Command; pure, no I/O
+  SmartHealth.swift       ← log page 0x02 parser (NVMe spec offsets)
+  ControllerIdentity.swift← Identify Controller parser (serial, model, WCTEMP)
+  DriveInventory.swift    ← pure classification: monitored vs why not
+  IOKitDeviceReader.swift ← the only type that touches the device
+  Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
 Sources/NvmeLens/
   main.swift              ← thin entry point: parse, dispatch, exit
-Tests/NvmeLensCoreTests/  ← 19 tests
+Tests/NvmeLensCoreTests/  ← 41 tests
 docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; ADRs share a basename)
 scripts/                  ← codesign / notarize (copied from org templates)
 Info.plist                ← ${APP_NAME}/${BUNDLE_ID}/${VERSION} substituted by make

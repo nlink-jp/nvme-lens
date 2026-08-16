@@ -34,9 +34,24 @@ do {
         // TODO(Phase 2): launch the menu-bar application.
         emit("menu-bar application is not implemented yet", toStandardError: true)
         exit(69)  // EX_UNAVAILABLE
-    case .list, .status, .history:
-        // TODO(Phase 1): read SMART data via IOKit and render the result.
-        emit("not implemented yet", toStandardError: true)
+    case .list(let format):
+        // list shows every drive, including the ones that cannot be monitored:
+        // a drive missing from the list reads as broken or undetected.
+        let reports = IOKitDeviceReader.readAll().map(DriveReport.init(record:))
+        emit(format == .json ? try Renderer.json(reports) : Renderer.table(reports))
+    case .status(let serial, let format):
+        var reports = IOKitDeviceReader.readMonitored().map(DriveReport.init(record:))
+        if let serial {
+            reports = reports.filter { $0.serialNumber == serial }
+            if reports.isEmpty {
+                emit("error: no monitored drive with serial '\(serial)'", toStandardError: true)
+                exit(69)
+            }
+        }
+        emit(format == .json ? try Renderer.json(reports) : Renderer.table(reports))
+    case .history:
+        // TODO(Phase 2): needs the SQLite store and background sampling.
+        emit("history is not implemented yet", toStandardError: true)
         exit(69)  // EX_UNAVAILABLE
     }
 } catch {

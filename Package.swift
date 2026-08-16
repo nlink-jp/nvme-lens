@@ -18,7 +18,18 @@ let package = Package(
         ),
         .target(
             name: "NvmeLensCore",
+            dependencies: ["CNvmeSmart"],
             path: "Sources/NvmeLensCore"
+        ),
+        // CFPlugIn COM against IOKit's NVMe SMART interface is awkward from
+        // Swift, so the COM dance is isolated here (ADR-0001).
+        .target(
+            name: "CNvmeSmart",
+            path: "Sources/CNvmeSmart",
+            linkerSettings: [
+                .linkedFramework("IOKit"),
+                .linkedFramework("CoreFoundation"),
+            ]
         ),
         .testTarget(
             name: "NvmeLensCoreTests",
