@@ -1,7 +1,10 @@
 import Foundation
 
-/// Thresholds and intervals, with defaults chosen from measurement rather than
+/// Thresholds and retention, with defaults chosen from measurement rather than
 /// from round numbers.
+///
+/// A plain value: the application owns these and stores them itself. They decide
+/// when to notify, and the application is the only thing that notifies.
 public struct Configuration: Equatable, Sendable {
     public struct Temperature: Equatable, Sendable {
         /// Hotspot threshold in Celsius.
@@ -38,8 +41,6 @@ public struct Configuration: Equatable, Sendable {
     }
 
     public struct Sampling: Equatable, Sendable {
-        public var temperatureIntervalSeconds: Int = 60
-        public var wearIntervalSeconds: Int = 3600
         public var temperatureRetentionDays: Int = 90
     }
 
@@ -50,58 +51,4 @@ public struct Configuration: Equatable, Sendable {
 
     public init() {}
 
-    /// Default location. macOS applications are expected to look in
-    /// `~/.config` too, not only in Application Support.
-    public static var defaultPath: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/nvme-lens/config.toml")
-    }
-
-    /// Reads a config file. A missing file is not an error — defaults apply.
-    /// A malformed file *is* an error: silently falling back to defaults would
-    /// mean the operator's thresholds stopped applying without anyone saying so.
-    public static func load(from url: URL = Configuration.defaultPath) throws -> Configuration {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else {
-            return Configuration()
-        }
-        return try Configuration(toml: text)
-    }
-
-    public init(toml text: String) throws {
-        self.init()
-        let table = try TOMLLite.parse(text)
-
-        if let section = table["temperature"] {
-            temperature.warningCelsius = section["warning_celsius"]?.integerValue
-                ?? temperature.warningCelsius
-            temperature.criticalCelsius = section["critical_celsius"]?.integerValue
-                ?? temperature.criticalCelsius
-            temperature.sustainedMinutes = section["sustained_minutes"]?.integerValue
-                ?? temperature.sustainedMinutes
-            temperature.enabled = section["enabled"]?.booleanValue ?? temperature.enabled
-        }
-        if let section = table["endurance"] {
-            endurance.percentageUsedWarning = section["percentage_used_warning"]?.integerValue
-                ?? endurance.percentageUsedWarning
-            endurance.spareMarginPoints = section["spare_margin_points"]?.integerValue
-                ?? endurance.spareMarginPoints
-            endurance.enabled = section["enabled"]?.booleanValue ?? endurance.enabled
-        }
-        if let section = table["anomaly"] {
-            if let value = section["power_cycles_per_hour_warning"]?.integerValue {
-                anomaly.powerCyclesPerHourWarning = Double(value)
-            }
-            anomaly.mediaErrorsEnabled = section["media_errors_enabled"]?.booleanValue
-                ?? anomaly.mediaErrorsEnabled
-            anomaly.enabled = section["enabled"]?.booleanValue ?? anomaly.enabled
-        }
-        if let section = table["sampling"] {
-            sampling.temperatureIntervalSeconds = section["temperature_interval_seconds"]?
-                .integerValue ?? sampling.temperatureIntervalSeconds
-            sampling.wearIntervalSeconds = section["wear_interval_seconds"]?.integerValue
-                ?? sampling.wearIntervalSeconds
-            sampling.temperatureRetentionDays = section["temperature_retention_days"]?.integerValue
-                ?? sampling.temperatureRetentionDays
-        }
-    }
 }

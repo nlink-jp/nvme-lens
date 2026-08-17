@@ -197,6 +197,45 @@ public final class HealthStore {
         return baseline
     }
 
+    /// Any recorded metric as a time series.
+    ///
+    /// One query path with the metric choosing the column, rather than a
+    /// bespoke accessor per field — adding a metric to the history then means
+    /// naming it, not writing another query.
+    public func metricSeries(serial: String, metric: HistoryMetric, since: Date) throws
+        -> [MetricPoint]
+    {
+        let (table, column, scale): (String, String, Double) = {
+            switch metric {
+            case .temperature: return ("temperature_samples", "hotspot_c", 1)
+            case .percentageUsed: return ("wear_snapshots", "percentage_used", 1)
+            case .availableSpare: return ("wear_snapshots", "available_spare", 1)
+            // Data units are 512000 bytes; charting terabytes keeps the axis
+            // readable.
+            case .dataWritten: return ("wear_snapshots", "data_units_written", 512_000 / 1e12)
+            case .powerCycles: return ("wear_snapshots", "power_cycles", 1)
+            case .unsafeShutdowns: return ("wear_snapshots", "unsafe_shutdowns", 1)
+            case .mediaErrors: return ("wear_snapshots", "media_errors", 1)
+            }
+        }()
+
+        var points: [MetricPoint] = []
+        try withStatement(
+            "SELECT ts, \(column) FROM \(table) WHERE serial = ? AND ts >= ? ORDER BY ts",
+            bind: { statement in
+                self.bind(statement, 1, serial)
+                sqlite3_bind_int64(statement, 2, Int64(since.timeIntervalSince1970))
+            },
+            step: { statement in
+                points.append(
+                    MetricPoint(
+                        timestamp: Date(
+                            timeIntervalSince1970: Double(sqlite3_column_int64(statement, 0))),
+                        value: Double(sqlite3_column_int64(statement, 1)) * scale))
+            })
+        return points
+    }
+
     public struct TemperatureSummary: Equatable, Sendable, Codable {
         public var serialNumber: String
         public var samples: Int

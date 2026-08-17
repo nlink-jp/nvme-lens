@@ -45,13 +45,26 @@ The drive's own warning threshold (WCTEMP, 84 °C) applies to Composite, so
 below the limit. A drive can report itself healthy while running hot. nvme-lens
 reads Temperature Sensor 1..8 individually and judges on the maximum.
 
+## What you see
+
+The menu bar carries a drive symbol and the temperature of whichever drives you
+pin. The symbol is drawn in the menu bar's own colour while everything is
+healthy, and turns orange or red only when something needs attention — a
+permanently coloured icon teaches the eye to skip it.
+
+Clicking it opens a panel: a verdict line, a six-hour temperature graph per
+pinned drive, and the other drives one line each. **History…** opens the longer
+view — up to ninety days, for temperature, wear, data written, power cycles,
+unsafe shutdowns and media errors — with any stretch the tool was not running
+drawn as a gap rather than smoothed over.
+
 ## Usage
 
 ```
 nvme-lens                                   Launch the menu-bar application
 nvme-lens list [--format json|table]        List drives, monitorable or not
 nvme-lens status [--device <serial>]        Current-value snapshot
-nvme-lens sample [--format json|table]      Record one sample, report alerts
+nvme-lens sample [--format json|table]      Record one sample
 nvme-lens history --device <serial> --since <period> [--metric temp|wear]
                                             period: 30m, 12h, 7d, 4w
 nvme-lens --version                         Print the version
@@ -76,8 +89,14 @@ IOService paths change across reconnects.
 
 ## Configuration
 
-Sectioned TOML at `~/.config/nvme-lens/config.toml`: thresholds, sampling
-intervals, retention, and notification toggles.
+In the application's Settings window: which drives are pinned to the menu bar,
+opening at login, notifications, sampling interval, alert thresholds and
+retention. There is no configuration file — every one of those settings decides
+what the *application* does, and a shared file only made them values the settings
+window could show but not change.
+
+The command line has no settings: it records one sample per invocation and reads
+back what was recorded.
 
 ## Requirements
 

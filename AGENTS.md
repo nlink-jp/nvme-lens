@@ -6,9 +6,10 @@ A macOS menu-bar application that continuously monitors NVMe SSD temperature and
 endurance, records them, and notifies on threshold breaches. Single binary: no
 arguments launches the menu-bar app, anything else is a CLI subcommand.
 
-**Current state: v0.1.0, feature-complete for the RFP's three phases.** The
-menu-bar app, the CLI subcommands, the SQLite history and the four alert classes
-all work and are verified on real hardware.
+**Current state: v0.1.0, feature-complete for the RFP's three phases.** A
+menu-bar status item opens a panel; History and Settings are separate windows.
+The CLI subcommands, the SQLite history and the four alert classes all work and
+are verified on real hardware, notifications included.
 
 ## Build and test
 
@@ -38,12 +39,23 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   AlertEvaluator.swift    ← pure alerting; `now` is injected
   HealthStore.swift       ← SQLite history (temperature + wear snapshots)
   Sampler.swift           ← one pass: read → persist → evaluate
-  Configuration.swift     ← thresholds; TOMLLite.swift is the reader
+  MetricSeries.swift      ← bucketing + gaps + axis domain, for every metric
+  TemperatureSeries.swift ← the panel's six-hour window
+  MenuBarPresentation.swift ← what to say; never how it looks
+  LoginItem.swift         ← status → control state, as a pure mapping
+  Configuration.swift     ← thresholds, as a plain value the app fills in
   Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
 Sources/NvmeLens/
   main.swift              ← thin entry point: parse, dispatch, exit
-Tests/NvmeLensCoreTests/  ← 87 tests
+  MenuBarApp.swift        ← status item, popover, windows, notifications
+  AppModel.swift          ← observable state shared by the views
+  Preferences.swift       ← every setting (UserDefaults); no config file exists
+  PanelView / HistoryView / SettingsView  ← SwiftUI, hosted in AppKit
+  StatusBarRenderer.swift ← symbol + tint for the status item
+  SparklineView.swift     ← the panel's chart (AppKit drawing)
+Tests/NvmeLensCoreTests/  ← core
+Tests/NvmeLensTests/      ← the app target (symbol names must resolve)
 docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; ADRs share a basename)
 scripts/                  ← codesign / notarize (copied from org templates)
 Info.plist                ← ${APP_NAME}/${BUNDLE_ID}/${VERSION} substituted by make
@@ -85,6 +97,19 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   `bundleProxyForCurrentProcess is nil` and kills the process. Guard on
   `Bundle.main.bundleIdentifier != nil` and say in the UI when notifications are
   off — silence looks identical to "nothing is wrong".
+- **`isTemplate` only works on a button's image.** An image embedded in an
+  attributed string ignores it and is drawn in whatever colour it carries, which
+  is why the healthy menu-bar symbol rendered grey. Symbols go in
+  `statusItem.button.image`.
+- **Verify SF Symbol names exist.** A name that does not resolve degrades the
+  menu bar to a bullet, silently. `StatusBarRenderer.allSymbolNames` is asserted
+  to resolve in the tests.
+- **No configuration file.** Every setting is in the app's Settings window and
+  stored in UserDefaults. A setting the UI can display but not change is worse
+  than one it does not show.
+- **Do not size a view against today's content.** Fixed heights broke three
+  times as sections were added; declare floors and ideals and let containers
+  resize.
 - **`CFBundleShortVersionString` is not `$(VERSION)`.** The archive keeps the
   leading `v`, the plist must not have it, and an untagged build must not put a
   commit hash where the app prints its version. `build-app` normalises it.

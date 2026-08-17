@@ -64,6 +64,13 @@ Defaults:
 | Temperature retention | 90 days (downsampled to 10-min averages beyond 30 days) | |
 | Endurance retention | Unlimited | Small volume, and long-term trend is the whole value of the metric |
 
+> **Amendment (2026-08-17).** The TOML configuration file described above was
+> removed before release. Every setting it would have held decides what the
+> resident application does — thresholds decide when to *notify*, and only the
+> application notifies — so the file produced rows the settings window could
+> display but not change. Settings now live in the application and are all
+> editable; the command line records and reports without judging.
+
 ### Storage
 
 SQLite. Temperature is per-minute and endurance is per-day, so granularities are

@@ -18,7 +18,7 @@ let usage = """
       nvme-lens                                   Launch the menu-bar application
       nvme-lens list [--format json|table]        List drives, monitorable or not
       nvme-lens status [--device <serial>]        Current-value snapshot
-      nvme-lens sample [--format json|table]      Record one sample, report alerts
+      nvme-lens sample [--format json|table]      Record one sample
       nvme-lens history --device <serial> --since <period> [--metric temp|wear]
                                                   period: 30m, 12h, 7d, 4w
       nvme-lens --version                         Print the version
@@ -33,7 +33,7 @@ do {
     case .help:
         emit(usage)
     case .menuBar:
-        MenuBarApp.run(store: try HealthStore(), configuration: try Configuration.load())
+        MenuBarApp.run(store: try HealthStore())
     case .list(let format):
         // list shows every drive, including the ones that cannot be monitored:
         // a drive missing from the list reads as broken or undetected.
@@ -50,16 +50,16 @@ do {
         }
         emit(format == .json ? try Renderer.json(reports) : Renderer.table(reports))
     case .sample(let format):
-        let outcome = try Sampler(store: try HealthStore(), configuration: try Configuration.load())
+        // Records only. Deciding what deserves a warning is the application's
+        // job — it is the thing that can raise one, and it owns the thresholds.
+        let outcome = try Sampler(store: try HealthStore(), configuration: Configuration())
             .run(records: IOKitDeviceReader.readAll())
         if format == .json {
             emit(try Renderer.json(sampleSummary: outcome))
         } else {
             emit(Renderer.table(sampleSummary: outcome))
         }
-        // A sample that produced alerts exits non-zero so a scheduled collector
-        // can notice without parsing output.
-        if !outcome.alerts.isEmpty { exit(1) }
+
     case .history(let serial, let since, let metric, let format):
         let store = try HealthStore()
         let cutoff = Date().addingTimeInterval(-Double(try PeriodParser.seconds(since)))

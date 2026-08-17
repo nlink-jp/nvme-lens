@@ -48,32 +48,48 @@ macOS, as a menu-bar application with a CLI in the same binary.
 - The power-cycle rule exposes what no other indicator does: a USB enclosure was
   measured cycling a drive 7.3 times per powered hour through disk sleep, where
   the same drive on Thunderbolt does zero.
-- Sectioned TOML config at `~/.config/nvme-lens/config.toml`. Unsupported syntax
-  and malformed files are errors, never a silent fallback — a threshold quietly
-  dropped is a monitor that quietly stops warning.
+- Every setting lives in the application: pinned drives, opening at login,
+  notifications, sampling interval, thresholds and retention. There is no
+  configuration file. Each of those decides what the *application* does, so a
+  file shared with the command line only produced rows the settings window could
+  display but not change (an RFP amendment — §2 originally specified TOML).
 
 ### Interface
 
-- `nvme-lens` launches the menu-bar app; the title is the hottest hotspot,
-  prefixed `!` / `!!` by severity. `list`, `status`, `sample` and `history` are
-  CLI subcommands of the same binary. JSON output by default, `--format table`
-  for reading.
-- Notifications carry a trigger so they survive the app exiting, and
-  authorization is requested on the first real alert rather than at launch:
-  killing the process while that prompt is unanswered pins the permission to
-  denied, and launch-then-quit is exactly what a smoke test does.
-- The version is shown in the menu.
+- `nvme-lens` launches the menu-bar app. The status item is a drive symbol plus
+  the temperature of whichever drives are pinned; the symbol is a template image
+  while everything is healthy, so the menu bar draws it in its own colour, and
+  takes orange or red only when something needs attention.
+- Clicking opens a **panel** — a verdict line, a six-hour graph per pinned drive,
+  the rest one line each. A **History window** reaches the retained data: up to
+  ninety days, across temperature, percentage used, available spare, data
+  written, power cycles, unsafe shutdowns and media errors. Stretches when the
+  tool was not running are drawn as gaps rather than smoothed over, and the
+  proportion of the window actually recorded is stated.
+- A **Settings window** holds every setting. Nothing in it is read-only.
+- `list`, `status`, `sample` and `history` are CLI subcommands of the same
+  binary. JSON by default, `--format table` for reading. The command line records
+  and reports; deciding what deserves a warning belongs to the application, which
+  is the thing that can raise one.
+- Notifications carry a trigger so they survive the app exiting. Authorization is
+  requested when the user switches them on, and at launch when the preference is
+  on but was never actually requested. Deferring it until the first alert means
+  the request never happens while everything is healthy — so the application
+  never appears in the system's notification list, cannot be configured there,
+  and stays silent forever. Delivery is gated on the status the system actually
+  reports, and the settings window says so when it is denied.
+- The version is shown in Settings.
 
 ### Verification
 
 Every SMART field was cross-checked against `smartctl` on three drives (one
 internal, two Thunderbolt-attached) and agrees exactly — including the internal
 drive's unusual 99% available-spare threshold. `smartctl` is a test oracle only;
-product code never invokes it and the 87 unit tests pass on a machine with no
+product code never invokes it and the 125 unit tests pass on a machine with no
 smartmontools installed and no NVMe device required.
 
-Three defects were found by running against real hardware while every unit test
-passed:
+Several defects were found by running against real hardware while every unit
+test passed:
 
 - Available-spare alerting fired on a healthy drive. Available Spare Threshold is
   a vendor choice — 5%, 10% and 99% were all observed on one machine — so
@@ -87,7 +103,25 @@ passed:
   wrong.
 
 Both the bare binary and the signed `.app` bundle were verified to launch, sample
-on the timer, and terminate cleanly.
+on the timer, and terminate cleanly. Notification delivery was verified
+end to end by lowering the threshold until three real alerts fired.
+
+Using the application turned up several more, none of which the tests could have
+caught:
+
+- The first interface was an `NSMenu`. A graph, a value hierarchy and a health
+  verdict all had to be forced into a list of commands; each fix — grey text,
+  clipped width, an ambiguous degree sign — made the seams more obvious. It was
+  replaced with a panel and separate windows.
+- `isTemplate` is honoured for a button's image and ignored for an image
+  embedded in an attributed string, so the "healthy" symbol kept rendering grey
+  in the menu bar until it moved into the image slot.
+- `internaldrive.fill.badge.exclamationmark` is not a real SF Symbol. It reads
+  perfectly plausibly and silently degrades the menu bar to a bullet; every name
+  the renderer can emit is now asserted to resolve.
+- Sizes measured against the content of the day broke three times as content was
+  added. Fixed heights were replaced with floors and ideals, and the remaining
+  constants are the ones a container legitimately owns.
 
 ### Packaging
 

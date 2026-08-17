@@ -32,6 +32,13 @@ let package = Package(
                 .linkedFramework("CoreFoundation"),
             ]
         ),
+        // The executable target is testable too: the status-bar renderer picks
+        // SF Symbol names, and a name that does not resolve fails silently.
+        .testTarget(
+            name: "NvmeLensTests",
+            dependencies: ["NvmeLens"],
+            path: "Tests/NvmeLensTests"
+        ),
         .testTarget(
             name: "NvmeLensCoreTests",
             dependencies: ["NvmeLensCore"],
