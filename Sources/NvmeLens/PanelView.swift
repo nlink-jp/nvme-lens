@@ -14,7 +14,13 @@ private struct Sparkline: NSViewRepresentable {
             warningCelsius: warningCelsius)
     }
 
-    func updateNSView(_ view: SparklineView, context: Context) { view.needsDisplay = true }
+    func updateNSView(_ view: SparklineView, context: Context) {
+        // Hand the new values over. Marking the view dirty without them just
+        // redraws the data it was built with.
+        view.update(
+            title: title, summary: summary, windowLabel: AppModel.graphWindowLabel,
+            warningCelsius: warningCelsius)
+    }
 }
 
 /// The panel shown when the status item is clicked.

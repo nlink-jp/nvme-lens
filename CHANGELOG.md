@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.1.1 — 2026-08-17
+
+### Fixed
+
+- **The panel's graph never updated.** `SparklineView` held its data in `let`
+  properties assigned at construction, and the SwiftUI wrapper's `updateNSView`
+  only marked the view dirty — so once SwiftUI had built the view it redrew the
+  same samples for the rest of the process's life. The History window was
+  unaffected because it re-reads the store on every render, which is why the data
+  looked collected but frozen.
+
+  It never appeared in development: restarting the app to test each change
+  rebuilt the view every time. It takes a machine that installs the app once and
+  leaves it running. Reported from exactly such an install.
+
+  The view now takes the new values on every update, and three tests assert that
+  what it will draw actually changed — verified to fail against the previous
+  implementation. A fourth test asserting `needsDisplay` was written and removed:
+  a view outside a window does not retain the flag, so it measured AppKit rather
+  than this code.
+
 ## v0.1.0 — 2026-08-17
 
 First release. Continuous temperature and endurance monitoring for NVMe SSDs on

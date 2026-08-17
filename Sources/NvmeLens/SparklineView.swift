@@ -7,11 +7,15 @@ import NvmeLensCore
 /// relative to `bounds`, so the layout follows whatever size SwiftUI hands it
 /// rather than assuming one.
 final class SparklineView: NSView {
-    private let summary: TemperatureSeries.Summary
-    private let title: String
-    private let caption: String
-    private let gapNote: String?
-    private let warningCelsius: Int?
+    // Mutable, and reassigned on every update. Holding these as `let` meant the
+    // view drew whatever it was constructed with for the rest of its life: the
+    // panel's graph froze at the first sample and never moved again. It only
+    // looked correct in development because restarting the app rebuilt the view.
+    private var summary: TemperatureSeries.Summary
+    private var title: String
+    private var caption: String
+    private var gapNote: String?
+    private var warningCelsius: Int?
 
     /// The height the panel gives this view. Named here, next to the layout
     /// that divides it, so the caption row and the plot cannot be sized against
@@ -33,6 +37,25 @@ final class SparklineView: NSView {
     }
 
     required init?(coder: NSCoder) { nil }
+
+    /// What the view will draw next. Exposed so a test can assert that an update
+    /// actually reached the view, rather than only that a redraw was requested.
+    var renderedSummary: TemperatureSeries.Summary { summary }
+    var renderedTitle: String { title }
+    var renderedCaption: String { caption }
+
+    /// Called by the SwiftUI wrapper whenever the model produces new data.
+    func update(
+        title: String, summary: TemperatureSeries.Summary, windowLabel: String,
+        warningCelsius: Int?
+    ) {
+        self.title = title
+        self.summary = summary
+        self.caption = summary.caption(windowLabel: windowLabel)
+        self.gapNote = summary.gapNote
+        self.warningCelsius = warningCelsius
+        needsDisplay = true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         let inset: CGFloat = 14
