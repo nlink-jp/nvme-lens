@@ -114,6 +114,8 @@ make package    # notarize してリリース用 zip を作成
 - [RFP](docs/ja/nvme-lens-rfp.ja.md) — 問題定義、仕様、開発計画
 - [ADR-0001](docs/ja/adr/0001-iokit-direct-smart-access.md) — SMART の取得に
   `smartctl` を使わず IOKit を直接呼ぶ理由
+- [実測ベースライン](docs/ja/reference/threshold-baseline.ja.md) — 既定閾値の根拠と、
+  その測定が裏付けていない範囲
 
 ## ライセンス
 

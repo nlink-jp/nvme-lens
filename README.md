@@ -122,6 +122,8 @@ make package    # notarize and produce the release zip
 - [RFP](docs/en/nvme-lens-rfp.md) — problem statement, specification, plan
 - [ADR-0001](docs/en/adr/0001-iokit-direct-smart-access.md) — why SMART is read
   through IOKit rather than by shelling out to `smartctl`
+- [Measured baseline](docs/en/reference/threshold-baseline.md) — where the
+  default thresholds came from, and what the measurement does not cover
 
 日本語版は [README.ja.md](README.ja.md) を参照してください。
 
