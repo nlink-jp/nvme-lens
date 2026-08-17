@@ -6,10 +6,9 @@ A macOS menu-bar application that continuously monitors NVMe SSD temperature and
 endurance, records them, and notifies on threshold breaches. Single binary: no
 arguments launches the menu-bar app, anything else is a CLI subcommand.
 
-**Current state: reading, history and alerting work from the CLI.** `list`,
-`status`, `sample` and `history` are implemented. The menu-bar UI, the timer that
-samples automatically, and delivery of alerts as macOS notifications are not
-written yet — `sample` returns and prints them instead.
+**Current state: v0.1.0, feature-complete for the RFP's three phases.** The
+menu-bar app, the CLI subcommands, the SQLite history and the four alert classes
+all work and are verified on real hardware.
 
 ## Build and test
 
@@ -44,7 +43,7 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   Version.swift           ← version resolution + fallback
 Sources/NvmeLens/
   main.swift              ← thin entry point: parse, dispatch, exit
-Tests/NvmeLensCoreTests/  ← 80 tests
+Tests/NvmeLensCoreTests/  ← 87 tests
 docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; ADRs share a basename)
 scripts/                  ← codesign / notarize (copied from org templates)
 Info.plist                ← ${APP_NAME}/${BUNDLE_ID}/${VERSION} substituted by make
@@ -81,8 +80,14 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   internal SSD and was caught only by running against real hardware.
 - **The evaluator must read its baseline before the sampler writes the new row**,
   or every delta is zero forever.
-- `icon.icns` does not exist yet; `make build-app` bundles without it and prints
-  a note. Adding it is a Phase 3 task.
+- **UserNotifications needs a real `.app` bundle.** Touching
+  `UNUserNotificationCenter.current()` from a bare `swift build` binary raises
+  `bundleProxyForCurrentProcess is nil` and kills the process. Guard on
+  `Bundle.main.bundleIdentifier != nil` and say in the UI when notifications are
+  off — silence looks identical to "nothing is wrong".
+- **`CFBundleShortVersionString` is not `$(VERSION)`.** The archive keeps the
+  leading `v`, the plist must not have it, and an untagged build must not put a
+  commit hash where the app prints its version. `build-app` normalises it.
 
 ## Conventions
 

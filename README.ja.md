@@ -8,10 +8,9 @@ macOS メニューバーアプリ。
 どちらも継続的に見られません。`diskutil` は Verified / Not Supported の二値だけ、
 `smartctl` は履歴の残らないスナップショットです。
 
-> **状態: プレリリース。** 読み取り・履歴・アラート判定は CLI から動作します。
-> メニューバー UI と自動サンプリングは未実装で、当面は `nvme-lens sample` を
-> 手動または launchd から実行して収集します。計画は
-> [RFP](docs/ja/nvme-lens-rfp.ja.md) を参照してください。
+> **状態: v0.1.0。** 上記はすべて動作します。設計は
+> [RFP](docs/ja/nvme-lens-rfp.ja.md)、検証内容は
+> [CHANGELOG](CHANGELOG.md) を参照してください。
 
 ## インストール前に: 監視できるドライブ
 

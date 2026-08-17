@@ -8,10 +8,9 @@ safety. Both come from the same NVMe SMART / Health Information log, and neither
 is continuously visible through stock macOS tooling: `diskutil` reports only a
 binary Verified / Not Supported, and `smartctl` gives a snapshot with no history.
 
-> **Status: pre-release.** Reading, history and alerting work from the CLI. The
-> menu-bar UI and automatic sampling are not built yet — run `nvme-lens sample`
-> (by hand or from launchd) to collect in the meantime. See
-> [the RFP](docs/en/nvme-lens-rfp.md) for the plan.
+> **Status: v0.1.0.** All of the above works. See
+> [the RFP](docs/en/nvme-lens-rfp.md) for the design and
+> [the changelog](CHANGELOG.md) for what was verified and how.
 
 ## Before you install: which drives can be monitored
 

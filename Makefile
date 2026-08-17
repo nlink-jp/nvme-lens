@@ -22,8 +22,17 @@ build-app: build
 	@mkdir -p $(APP_BUNDLE)/Contents/MacOS
 	@mkdir -p $(APP_BUNDLE)/Contents/Resources
 	@cp $(BUILD_DIR)/$(APP_NAME) $(APP_BUNDLE)/Contents/MacOS/
-	@sed 's/$${VERSION}/$(VERSION)/g; s/$${BUNDLE_ID}/$(BUNDLE_ID)/g; \
-	      s/$${APP_NAME}/$(APP_NAME)/g' Info.plist > $(APP_BUNDLE)/Contents/Info.plist
+# CFBundleShortVersionString has to be a dotted version, not a tag name and not
+# a commit hash. The archive keeps the leading "v" (org convention); the plist
+# drops it along with any -N-gSHA / -dirty suffix. An untagged build becomes
+# 0.0.0 rather than showing a hash where the app prints its version.
+	@plist_version=$$(printf '%s' '$(VERSION)' | sed -E 's/^v//; s/-.*$$//'); \
+	 case "$$plist_version" in \
+	   [0-9]*.[0-9]*) ;; \
+	   *) plist_version=0.0.0 ;; \
+	 esac; \
+	 sed "s/\$${VERSION}/$$plist_version/g; s/\$${BUNDLE_ID}/$(BUNDLE_ID)/g; \
+	      s/\$${APP_NAME}/$(APP_NAME)/g" Info.plist > $(APP_BUNDLE)/Contents/Info.plist
 # icon.icns is a Phase 3 deliverable; the bundle assembles without it until then.
 	@if [ -f icon.icns ]; then cp icon.icns $(APP_BUNDLE)/Contents/Resources/icon.icns; \
 	 else echo "note: icon.icns not present yet, bundling without an icon"; fi
