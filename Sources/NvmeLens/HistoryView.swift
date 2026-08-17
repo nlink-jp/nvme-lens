@@ -2,6 +2,52 @@ import Charts
 import NvmeLensCore
 import SwiftUI
 
+/// Lays its children out in a row, wrapping to the next line when they do not
+/// fit.
+///
+/// An `HStack` of fixed-size controls simply overflows its window, and the
+/// widths here depend on drive model names, which this tool does not control.
+private struct FlowControls: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0, rowHeight: CGFloat = 0
+        var total = CGSize.zero
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + spacing + size.width > maxWidth {
+                total.width = max(total.width, rowWidth)
+                total.height += rowHeight + spacing
+                rowWidth = 0
+                rowHeight = 0
+            }
+            rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
+            rowHeight = max(rowHeight, size.height)
+        }
+        total.width = max(total.width, rowWidth)
+        total.height += rowHeight
+        return total
+    }
+
+    func placeSubviews(
+        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+    ) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 /// The window that makes the retained history reachable.
 ///
 /// The panel deliberately shows six hours: it is a glance, not a study. But the
@@ -35,14 +81,22 @@ struct HistoryView: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 640, minHeight: 460)
+        .frame(minWidth: Self.minimumWidth, idealWidth: Self.preferredWidth, minHeight: 460)
         .onAppear {
             if serial.isEmpty { serial = drives.first?.serialNumber ?? "" }
         }
     }
 
+    /// Measured, not guessed: the pickers alone need ~820pt with the drive names
+    /// seen so far, and a drive's model name is not ours to bound — a longer one
+    /// would overflow any width chosen today. The row wraps instead.
+    static let preferredWidth: CGFloat = 860
+    static let minimumWidth: CGFloat = 560
+
     private var controls: some View {
-        HStack {
+        // ViewThatFits would silently drop controls; a wrapping layout keeps all
+        // of them and costs a second line only when the names are long.
+        FlowControls {
             Picker("Drive", selection: $serial) {
                 ForEach(drives, id: \.serialNumber) { drive in
                     Text(drive.name).tag(drive.serialNumber)
@@ -59,19 +113,24 @@ struct HistoryView: View {
             }
             .fixedSize()
 
-            Text("Range")
-                // Without this the label is handed no width by the HStack and
-                // SwiftUI wraps it one character per line.
-                .fixedSize()
-            Picker("Range", selection: $window) {
-                ForEach(TemperatureSeries.Window.allCases, id: \.self) { option in
-                    Text(option.label).tag(option)
+            // The label and its control are one unit. Handed to the layout as
+            // two children they wrapped apart, stranding "Range" on the line
+            // above its own buttons. The other two pickers carry their labels
+            // internally, which is why only this one split.
+            HStack(spacing: 8) {
+                Text("Range")
+                    // Without this the label is handed no width and SwiftUI
+                    // wraps it one character per line.
+                    .fixedSize()
+                Picker("Range", selection: $window) {
+                    ForEach(TemperatureSeries.Window.allCases, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .fixedSize()
-            Spacer()
         }
     }
 

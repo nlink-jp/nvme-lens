@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.1.2 — 2026-08-17
+
+### Fixed
+
+- **The History window opened too narrow.** Its controls measure ~817 pt and the
+  window opened at 720, so the row overflowed until the user widened it by hand.
+  Widening the default alone would not have held — a drive's model name is not
+  something this tool bounds, and a longer one would overflow whatever width was
+  chosen today. The control row now wraps, the default is derived from the
+  measured content with headroom, and the floor is deliberately below it so a
+  narrow window is usable rather than broken.
+- **A label was stranded above its own control.** The wrapping layout treats each
+  child separately, and the range picker's label was handed to it apart from the
+  segmented buttons — so at the minimum width "Range" sat on one line and its
+  buttons on the next. Label and control are now one unit. The other two pickers
+  were never affected because they carry their labels internally; this one had
+  been separated earlier to stop the label wrapping one character per line, and
+  that fix created this one.
+
+  The minimum width is now asserted to exceed the widest label+control unit:
+  below that, wrapping cannot help.
+
 ## v0.1.1 — 2026-08-17
 
 ### Fixed

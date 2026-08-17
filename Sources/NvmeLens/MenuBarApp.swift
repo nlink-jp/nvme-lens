@@ -143,7 +143,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         closePanel()
         if historyWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 720, height: 520),
+                contentRect: NSRect(
+                    x: 0, y: 0, width: HistoryView.preferredWidth, height: 560),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered,
                 defer: false)
             window.title = "nvme-lens History"

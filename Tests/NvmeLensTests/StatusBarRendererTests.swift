@@ -55,3 +55,48 @@ struct StatusBarRendererTests {
         #expect(StatusBarRenderer.image(named: "not.a.real.symbol", tint: nil) == nil)
     }
 }
+
+@Suite("HistoryView sizing")
+@MainActor
+struct HistoryViewSizingTests {
+    /// The default window opened at 720pt while the controls needed ~817pt, so
+    /// the row overflowed until the user widened it by hand. The width is now
+    /// derived from what the controls measure, with headroom — and the row wraps
+    /// anyway, because a drive's model name is not something this tool bounds.
+    /// A wrapping layout treats each child independently, so a label handed to
+    /// it separately from its control can be stranded on the line above. Both
+    /// remaining widths must therefore be for whole label+control units.
+    @Test("the wrap unit is wide enough to hold a label with its control")
+    func wrapUnitsKeepLabelsWithControls() {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        func width(_ text: String) -> CGFloat {
+            (text as NSString).size(withAttributes: [.font: font]).width
+        }
+        // The widest single unit is the range label plus all four segments; the
+        // window must never be narrower than one unit, or wrapping cannot help.
+        let rangeUnit = width("Range") + 8
+            + ["24 hours", "7 days", "30 days", "90 days"].map { width($0) + 24 }.reduce(0, +)
+        #expect(HistoryView.minimumWidth >= rangeUnit + 32)
+    }
+
+    @Test("the preferred width clears what the controls actually measure")
+    func preferredWidthFitsControls() {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        func width(_ text: String) -> CGFloat {
+            (text as NSString).size(withAttributes: [.font: font]).width
+        }
+        let popupChrome: CGFloat = 34, labelGap: CGFloat = 8, segmentPadding: CGFloat = 24
+
+        let drive = width("Drive") + labelGap + width("WD_BLACK SN770 1TB") + popupChrome
+        let metric = width("Metric") + labelGap + width("Unsafe shutdowns") + popupChrome
+        let range = width("Range") + labelGap
+        let segments = ["24 hours", "7 days", "30 days", "90 days"]
+            .map { width($0) + segmentPadding }.reduce(0, +)
+        let required = 32 + drive + 8 + metric + 8 + range + segments
+
+        #expect(HistoryView.preferredWidth >= required)
+        // The floor is deliberately below that: the row wraps, so a narrower
+        // window is usable rather than broken.
+        #expect(HistoryView.minimumWidth < required)
+    }
+}
