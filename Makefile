@@ -11,6 +11,17 @@ NOTARY_PROFILE    ?= nlink-jp-notary
 CODESIGN_SCRIPT   := scripts/codesign-darwin-app.sh
 NOTARIZE_SCRIPT   := scripts/notarize-darwin-app.sh
 
+# Homebrew tap: `make brew` regenerates Casks/nvme-lens.rb from the release zip
+# in dist/ and pushes it to the local nlink-jp/homebrew-tap checkout. The zip is
+# named after $(NAME); the .app inside is $(APP_NAME).app.
+BREW_KIND        := cask
+BREW_DESC        := Menu-bar monitor for NVMe SSD temperature and endurance
+BREW_NAME        := $(NAME)
+BREW_APP         := $(APP_NAME).app
+BREW_BUNDLE_ID   := $(BUNDLE_ID)
+BREW_MACOS_FLOOR := :sonoma
+include scripts/release-brew.mk
+
 .PHONY: build build-app package test fmt clean
 
 build:
