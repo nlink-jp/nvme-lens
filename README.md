@@ -100,7 +100,9 @@ back what was recorded.
 
 The app is single-instance: starting a second copy (for example, a
 notification click resolving to a different copy of the .app) logs to
-stderr and exits, leaving the running instance alone.
+stderr and exits, leaving the running instance alone. CLI subcommands
+(`list`, `status`, `sample`, `history`) are not affected and keep
+working while the menu-bar app runs.
 
 ## Requirements
 

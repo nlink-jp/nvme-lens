@@ -105,9 +105,11 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   and may start a different copy than the running one → two menu bar
   items, double polling. Guarded at two layers:
   `LSMultipleInstancesProhibited` (Info.plist, stops LaunchServices
-  launches) and a startup check at the top of `main.swift`
+  launches) and a startup check in `main.swift`'s `.menuBar` branch
   (`singleInstanceDecision`, core-tested) that exits with a stderr note
-  (covers direct exec / `open -n`). Side effect: to run a `dist/` build,
+  (covers direct exec / `open -n`). The guard sits *after* CLI dispatch
+  on purpose: `list`/`status`/`sample`/`history` must keep working while
+  the menu-bar app runs. Side effect: to run a `dist/` build's GUI,
   quit the installed instance first — a second copy now refuses to start.
 - **`isTemplate` only works on a button's image.** An image embedded in an
   attributed string ignores it and is drawn in whatever colour it carries, which

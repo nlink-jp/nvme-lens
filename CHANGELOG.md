@@ -12,7 +12,9 @@
   at two layers: `LSMultipleInstancesProhibited` in Info.plist stops
   LaunchServices launches, and a startup guard exits with a stderr note
   when another instance is already running (covers direct binary exec
-  and `open -n`)
+  and `open -n`). The guard applies only to the menu-bar launch: CLI
+  subcommands (`list`/`status`/`sample`/`history`) keep working while
+  the app runs
 
 ## v0.1.2 — 2026-08-17
 
