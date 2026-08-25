@@ -22,7 +22,7 @@ BREW_BUNDLE_ID   := $(BUNDLE_ID)
 BREW_MACOS_FLOOR := :sonoma
 include scripts/release-brew.mk
 
-.PHONY: build build-app package test fmt clean
+.PHONY: build build-app package verify-release test fmt clean
 
 build:
 	@mkdir -p $(DIST_DIR)
@@ -53,6 +53,17 @@ package: build-app
 	@$(NOTARIZE_SCRIPT) $(APP_BUNDLE) "$(NOTARY_PROFILE)"
 	@cd $(DIST_DIR) && /usr/bin/ditto -c -k --keepParent \
 		$(APP_NAME).app $(NAME)-$(VERSION)-darwin-arm64.zip
+
+## verify-release: refuse to release an un-notarized build (marker + staple gate)
+verify-release:
+	@test -f "$(APP_BUNDLE).notarized" || { \
+		echo "verify-release: FAIL — $(APP_BUNDLE) has no notarization marker."; \
+		echo "  make package must end with '[notarize-app] ...: Accepted and stapled'. Do not upload."; \
+		exit 1; }
+	@xcrun stapler validate $(APP_BUNDLE)
+	@test -f "$(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip" || { \
+		echo "verify-release: FAIL — release zip missing: $(DIST_DIR)/$(NAME)-$(VERSION)-darwin-arm64.zip"; exit 1; }
+	@echo "verify-release: OK ($(VERSION) — marker present, ticket stapled)"
 
 # Unit tests require no device and no smartmontools (ADR-0001 Decision 5).
 test:

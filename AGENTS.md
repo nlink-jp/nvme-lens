@@ -18,6 +18,7 @@ make build      # swift build -c release  →  .build/release/NvmeLens
 make test       # swift test — no device, no smartmontools required
 make build-app  # assemble + sign dist/NvmeLens.app
 make package    # notarize + dist/nvme-lens-<version>-darwin-arm64.zip
+make verify-release  # gate: .notarized marker + stapler validate (run before upload)
 make fmt        # swift format (absolute paths, never a bare '.')
 make clean
 ```
