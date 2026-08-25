@@ -18,6 +18,8 @@
 	<string>icon</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
 	<!-- Menu-bar resident: no Dock icon, no main window. -->
 	<key>LSUIElement</key>
 	<true/>

@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Clicking a notification banner could start a second instance (two menu
+  bar items, double polling): notificationd opens the app via
+  LaunchServices by bundle identifier, and with more than one registered
+  copy of the .app (dev build in `dist/`, `/Applications`) it may launch
+  a different copy than the running one. The app is now single-instance
+  at two layers: `LSMultipleInstancesProhibited` in Info.plist stops
+  LaunchServices launches, and a startup guard exits with a stderr note
+  when another instance is already running (covers direct binary exec
+  and `open -n`)
+
 ## v0.1.2 — 2026-08-17
 
 ### Fixed

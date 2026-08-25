@@ -98,6 +98,10 @@ window could show but not change.
 The command line has no settings: it records one sample per invocation and reads
 back what was recorded.
 
+The app is single-instance: starting a second copy (for example, a
+notification click resolving to a different copy of the .app) logs to
+stderr and exits, leaving the running instance alone.
+
 ## Requirements
 
 - macOS 14 or later, Apple Silicon

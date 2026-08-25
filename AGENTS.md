@@ -46,6 +46,7 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   Configuration.swift     ← thresholds, as a plain value the app fills in
   Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
+  SingleInstance.swift    ← singleInstanceDecision(): startup duplicate-instance guard (pure; pids in, decision out)
 Sources/NvmeLens/
   main.swift              ← thin entry point: parse, dispatch, exit
   MenuBarApp.swift        ← status item, popover, windows, notifications
@@ -97,6 +98,17 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   `bundleProxyForCurrentProcess is nil` and kills the process. Guard on
   `Bundle.main.bundleIdentifier != nil` and say in the UI when notifications are
   off — silence looks identical to "nothing is wrong".
+- **Notification clicks launch by bundle ID — enforce a single instance.**
+  Clicking a banner makes notificationd open the app via LaunchServices,
+  which resolves `jp.nlink.nvme-lens` among *all* registered copies
+  (`dist/` dev builds, release-verification extractions, `/Applications`)
+  and may start a different copy than the running one → two menu bar
+  items, double polling. Guarded at two layers:
+  `LSMultipleInstancesProhibited` (Info.plist, stops LaunchServices
+  launches) and a startup check at the top of `main.swift`
+  (`singleInstanceDecision`, core-tested) that exits with a stderr note
+  (covers direct exec / `open -n`). Side effect: to run a `dist/` build,
+  quit the installed instance first — a second copy now refuses to start.
 - **`isTemplate` only works on a button's image.** An image embedded in an
   attributed string ignores it and is drawn in whatever colour it carries, which
   is why the healthy menu-bar symbol rendered grey. Symbols go in
