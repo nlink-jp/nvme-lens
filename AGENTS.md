@@ -6,7 +6,9 @@ A macOS menu-bar application that continuously monitors NVMe SSD temperature and
 endurance, records them, and notifies on threshold breaches. Single binary: no
 arguments launches the menu-bar app, anything else is a CLI subcommand.
 
-**Current state: v0.1.0, feature-complete for the RFP's three phases.** A
+**Current state: released, and feature-complete for the RFP's three phases.** The
+version lives in `git describe --tags` and `CHANGELOG.md`, not here — the number
+that used to be written in this sentence went stale with every release. A
 menu-bar status item opens a panel; History and Settings are separate windows.
 The CLI subcommands, the SQLite history and the four alert classes all work and
 are verified on real hardware, notifications included.
