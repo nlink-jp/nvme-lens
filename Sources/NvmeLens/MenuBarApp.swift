@@ -117,11 +117,20 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         updateStatusItem()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // Without this the panel is drawn in its inactive state, which recent
-        // macOS renders as a dark, dimmed sheet that reads as a bug.
+        // macOS renders as a dark, dimmed sheet that reads as a bug. It does not
+        // make the app frontmost, and .transient closes nothing without it
+        // (both measured on macOS 27.0 — see AGENTS.md).
         popover.contentViewController?.view.window?.makeKey()
 
-        // A transient popover from an accessory app does not reliably dismiss on
-        // an outside click once the app has been activated, so close it here.
+        // .transient alone misses outside clicks that take no activation.
+        // Measured on this app with this monitor removed (macOS 27.0,
+        // 2026-09-20): it closed the panel when the click landed in a window
+        // that takes activation — another app's window, or our own settings
+        // window — and never on an empty stretch of the menu bar or another
+        // process's non-activating panel. Whether the app had been activated
+        // before made no difference. So every global mouse-down closes it here.
+        // This monitor also receives a click on our own status item, before
+        // togglePanel runs — read AGENTS.md before changing either.
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]
         ) { [weak self] _ in

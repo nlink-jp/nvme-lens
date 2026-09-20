@@ -121,6 +121,64 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   on purpose: `list`/`status`/`sample`/`history` must keep working while
   the menu-bar app runs. Side effect: to run a `dist/` build's GUI,
   quit the installed instance first — a second copy now refuses to start.
+- **Outside-click dismissal does not rely on `.transient` alone.** `togglePanel`
+  installs a global mouse-down monitor while the panel is shown. What that rests
+  on was measured on the real app (macOS 27.0, 2026-09-20; 3 clicks per cell
+  unless noted) with synthetic HID clicks (`CGEvent` at `.cghidEventTap`), the
+  status item's frame from the AX `AXExtrasMenuBar` of the pid, panel visibility
+  from `CGWindowList`, the frontmost app from both `NSWorkspace` and
+  `lsappinfo front`, and outside clicks aimed only at a probe-owned
+  window/panel or at a point just re-read as `AXMenuBar`:
+  - **`.transient` alone** (control build, bare release binary, only the
+    `addGlobalMonitorForEvents` block removed) closed the panel when the click
+    landed in a window that takes activation — another app's normal window 3/3,
+    the already-frontmost app's window 3/3 — and missed surfaces that take none:
+    another process's non-activating panel 0/3, an empty stretch of the menu bar
+    0/3. The same numbers came back in all three states tried: never activated;
+    settings window open and nvme-lens made frontmost (through its own
+    Settings… path) before every trial; settings opened, then closed (the
+    already-frontmost case was not run with settings open). Activation history
+    changed nothing. The comment that used to stand on the monitor — "does not
+    reliably dismiss … once the app has been activated" — was a causal reading
+    (the one status-lens's notes also carried until it was measured there), and
+    no measurement supports it.
+  - **As shipped** (the installed v0.1.3, same source) all four outside surfaces
+    closed 3/3 in the same cells, and a click inside the panel left it open 3/3.
+  - **A click into this app's own settings window closes the panel**, on the
+    shipped build and on the no-monitor control alike: 3/3 with the panel
+    opened from a frontmost nvme-lens, 3/3 with another app frontmost, 3/3
+    (shipped build) with nvme-lens already active after a click inside the
+    panel. There is no local monitor and these cells found no need for one —
+    our own window is a window that takes activation. The History window was
+    not measured.
+  - **`makeKey()` is what lets `.transient` work at all here, and it is not an
+    activation.** With `makeKey()` removed as well, nothing closed: 0/3 on all
+    four surfaces (status-lens measured the same; load-spinner did not — control
+    results do not carry across apps). Opening the panel never made nvme-lens
+    frontmost (18 samples from 0.15 s to 3 s after opening, over 3 openings).
+    When nvme-lens *is* frontmost (settings window), clicking the status item
+    hands frontmost back to the previous app (12/12) — whose windows may then
+    cover the settings window.
+  - **Open defect — re-clicking the status item does not close the panel**
+    (0/3 never activated, 0/3 after settings was opened and closed, 0/3 on the
+    copy that was already running, activation history unknown). It disappears
+    23–40 ms after mouse-down and is back 68–221 ms after it, while the button
+    is still held (mouse-up was posted at 300 ms). A trace build (stderr lines
+    only) shows the order: the global monitor receives the click on our own
+    status item, `closePanel()` runs with `isShown == true`, and 20–35 ms later
+    `togglePanel` runs with `isShown == false` and shows the panel again. Two
+    control builds bracket the cause: without the monitor the re-click closed
+    3/3 (twice); with the monitor but without `popover.animates = false`,
+    `togglePanel` still found `isShown == true` and the re-click closed 6/6.
+    The installed status-lens and load-spinner, which never set `animates`,
+    closed 3/3 each. When nvme-lens is the active app (after a click inside the
+    panel) the re-click closed 6/6; a clean-up re-click in that state failed
+    once in three on both the shipped and the no-monitor build, unexplained and
+    not reproduced. Not fixed: a fix changes behaviour and needs tests, README
+    and CHANGELOG.
+  - **Only a real machine can judge any of this.** Re-verify with the method
+    above; a check that only clicks another app's window passes `.transient`
+    alone, and one that never re-clicks the status item passes the defect.
 - **`isTemplate` only works on a button's image.** An image embedded in an
   attributed string ignores it and is drawn in whatever colour it carries, which
   is why the healthy menu-bar symbol rendered grey. Symbols go in
