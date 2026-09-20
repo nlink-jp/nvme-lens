@@ -92,7 +92,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate()
-        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        // Termination goes on to close the panel's window, and popoverDidClose
+        // syncs the monitor once more: by then nothing may be awaited and
+        // nothing left to remove.
+        panelToggle = PanelToggle()
+        removeOutsideClickMonitor()
         if let activityToken { ProcessInfo.processInfo.endActivity(activityToken) }
     }
 
@@ -175,10 +179,20 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
                 let location = event.locationInWindow
                 MainActor.assumeIsolated { self?.globalMouseDown(at: location) }
             }
-        } else if !needed, let monitor = outsideClickMonitor {
-            NSEvent.removeMonitor(monitor)
-            outsideClickMonitor = nil
+        } else if !needed {
+            removeOutsideClickMonitor()
         }
+    }
+
+    /// The only place the monitor is removed. `NSEvent.removeMonitor` must run
+    /// exactly once per monitor — a second call over-releases it — so the
+    /// reference goes in the same breath. Quitting from the panel crashed when
+    /// `applicationWillTerminate` removed it and kept the reference, and the
+    /// panel's closing window then brought `popoverDidClose` here again.
+    private func removeOutsideClickMonitor() {
+        guard let monitor = outsideClickMonitor else { return }
+        NSEvent.removeMonitor(monitor)
+        outsideClickMonitor = nil
     }
 
     // MARK: - Settings

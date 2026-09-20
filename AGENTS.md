@@ -210,6 +210,15 @@ tested; executable targets are awkward to import from tests. Keep logic out of
       never reach a global monitor it stays a plain toggle.
     - **Do not trade this for the animation's margin, a time window, or
       `isShown` alone** — each is the defect again under a different load.
+    - **The monitor is removed in one place, which also drops the reference**
+      (`removeOutsideClickMonitor`; a source test counts the call sites).
+      `NSEvent.removeMonitor` over-releases a monitor it is handed twice. The
+      first version of this fix crashed on the way out — Quit is a button
+      *inside* the panel, `applicationWillTerminate` removed the monitor and
+      kept the reference, termination closed the panel's window, and the new
+      `popoverDidClose` removed it again (SIGSEGV, exit status 139; found by
+      the maintainer's hand check, not by the probe, which had only ever
+      terminated the app from outside with the panel closed).
     - **Verified on the fixed build** (bare release binary, same method):
       re-click closes without reopening 3/3 never activated and 3/3 after
       settings; 3/3 at each of centre, screen top row, y=1, the button's bottom
@@ -220,12 +229,19 @@ tested; executable targets are awkward to import from tests. Keep logic out of
       toggle, before or after: the panel's arrow overlaps the item's last rows
       at its centre, and a click there is a click inside the panel (neither the
       monitor nor the action fires; eight points to the left on the same row it
-      closed 3/3).
+      closed 3/3). Ways out, each judged by exit status and crash reports: Quit
+      from the panel 3/3 clean, Quit from the panel with the History and
+      Settings windows open, and an external terminate while the panel is
+      open — all exit 0; History… and Settings… close the panel and leave the
+      toggle and the outside click working.
   - **Only a real machine can judge any of this.** Re-verify with the method
     above; a check that only clicks another app's window passes `.transient`
     alone, one that never re-clicks the status item passes the re-click
-    defect, and one that never clicks inside the panel first never meets the
-    re-click whose action does not come.
+    defect, one that never clicks inside the panel first never meets the
+    re-click whose action does not come, and one that never presses the
+    panel's own buttons — Quit above all — never runs the panel's close
+    during termination. A probe that finds the panel as "a tall window owned
+    by the pid" mistakes the History window for it; exclude titled windows.
 - **`isTemplate` only works on a button's image.** An image embedded in an
   attributed string ignores it and is drawn in whatever colour it carries, which
   is why the healthy menu-bar symbol rendered grey. Symbols go in
