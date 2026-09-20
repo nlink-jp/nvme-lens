@@ -44,6 +44,7 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   TemperatureSeries.swift ← the panel's six-hour window
   MenuBarPresentation.swift ← what to say; never how it looks
   LoginItem.swift         ← status → control state, as a pure mapping
+  PanelToggle.swift       ← one click, two handlers (global monitor + button action): who closes, who must not reopen
   Configuration.swift     ← thresholds, as a plain value the app fills in
   Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
@@ -121,14 +122,15 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   on purpose: `list`/`status`/`sample`/`history` must keep working while
   the menu-bar app runs. Side effect: to run a `dist/` build's GUI,
   quit the installed instance first — a second copy now refuses to start.
-- **Outside-click dismissal does not rely on `.transient` alone.** `togglePanel`
-  installs a global mouse-down monitor while the panel is shown. What that rests
-  on was measured on the real app (macOS 27.0, 2026-09-20; 3 clicks per cell
-  unless noted) with synthetic HID clicks (`CGEvent` at `.cghidEventTap`), the
-  status item's frame from the AX `AXExtrasMenuBar` of the pid, panel visibility
-  from `CGWindowList`, the frontmost app from both `NSWorkspace` and
-  `lsappinfo front`, and outside clicks aimed only at a probe-owned
-  window/panel or at a point just re-read as `AXMenuBar`:
+- **Outside-click dismissal does not rely on `.transient` alone.** A global
+  mouse-down monitor is installed while the panel is shown
+  (`syncOutsideClickMonitor`). What that rests on was measured on the real app
+  (macOS 27.0, 2026-09-20; 3 clicks per cell unless noted) with synthetic HID
+  clicks (`CGEvent` at `.cghidEventTap`), the status item's frame from the AX
+  `AXExtrasMenuBar` of the pid, panel visibility from `CGWindowList`, the
+  frontmost app from both `NSWorkspace` and `lsappinfo front`, and outside
+  clicks aimed only at a probe-owned window/panel or at a point just re-read
+  as `AXMenuBar`:
   - **`.transient` alone** (control build, bare release binary, only the
     `addGlobalMonitorForEvents` block removed) closed the panel when the click
     landed in a window that takes activation — another app's normal window 3/3,
@@ -142,7 +144,7 @@ tested; executable targets are awkward to import from tests. Keep logic out of
     reliably dismiss … once the app has been activated" — was a causal reading
     (the one status-lens's notes also carried until it was measured there), and
     no measurement supports it.
-  - **As shipped** (the installed v0.1.3, same source) all four outside surfaces
+  - **As shipped** (the installed v0.1.3) all four outside surfaces
     closed 3/3 in the same cells, and a click inside the panel left it open 3/3.
   - **A click into this app's own settings window closes the panel**, on the
     shipped build and on the no-monitor control alike: 3/3 with the panel
@@ -159,26 +161,62 @@ tested; executable targets are awkward to import from tests. Keep logic out of
     When nvme-lens *is* frontmost (settings window), clicking the status item
     hands frontmost back to the previous app (12/12) — whose windows may then
     cover the settings window.
-  - **Open defect — re-clicking the status item does not close the panel**
-    (0/3 never activated, 0/3 after settings was opened and closed, 0/3 on the
-    copy that was already running, activation history unknown). It disappears
-    23–40 ms after mouse-down and is back 68–221 ms after it, while the button
-    is still held (mouse-up was posted at 300 ms). A trace build (stderr lines
-    only) shows the order: the global monitor receives the click on our own
-    status item, `closePanel()` runs with `isShown == true`, and 20–35 ms later
-    `togglePanel` runs with `isShown == false` and shows the panel again. Two
-    control builds bracket the cause: without the monitor the re-click closed
-    3/3 (twice); with the monitor but without `popover.animates = false`,
-    `togglePanel` still found `isShown == true` and the re-click closed 6/6.
-    The installed status-lens and load-spinner, which never set `animates`,
-    closed 3/3 each. When nvme-lens is the active app (after a click inside the
-    panel) the re-click closed 6/6; a clean-up re-click in that state failed
-    once in three on both the shipped and the no-monitor build, unexplained and
-    not reproduced. Not fixed: a fix changes behaviour and needs tests, README
-    and CHANGELOG.
+  - **Re-clicking the status item closes the panel — through `PanelToggle`,
+    not through `isShown`.** Up to v0.1.3 it did not (0/3 never activated, 0/3 after
+    settings was opened and closed, 0/3 on a copy that was already running): the
+    panel vanished 23–40 ms after mouse-down and was back 68–221 ms after
+    it, button still held (mouse-up was posted at 300 ms). Why, from trace builds:
+    on macOS 27.0 the menu bar is hosted by another process (MenuBarAgent), so a
+    click on our own status item reaches the *global* monitor first — in every
+    trace, active app or not — and the button's action 14–49 ms later,
+    running under a synthesized `leftMouseUp` whose `eventNumber` is 0 whatever the
+    mouse-down carried, so the two cannot be matched by identity. With
+    `popover.animates = false` the monitor's close is immediate, and the action
+    found `isShown == false` and opened the panel again. Controls: without the
+    monitor the re-click closed 3/3 (twice); with the monitor but the default
+    close animation `isShown` was still true when the action arrived and it
+    closed 6/6 — that margin is all that keeps the installed status-lens and
+    load-spinner (3/3 each) from the same defect. When nvme-lens is the active
+    app (after a click inside the panel) the action sometimes never comes (3 of
+    5 traced re-clicks; the other 2 reopened), which is why such re-clicks
+    closed 6/6 in one run and 2/3 in others before the fix.
+    - **The fix matches the two by order.** The monitor still closes on every
+      global mouse-down and notes when the click was on the status item; the
+      next action is that click's and is dropped (`PanelToggle`, tested). If no
+      action comes, the note is void at the next mouse-down the monitor sees, so
+      the monitor outlives the panel until then. `popoverDidClose` runs the same
+      `syncOutsideClickMonitor`, which also removes the monitor after a close
+      `.transient` made on its own (it used to linger until the next click).
+    - **"On the status item" is the button's *window* frame, read at click
+      time, with top-left ownership** (`statusItemOwns`). Measured by which
+      points open the panel: the window is the menu bar's full 30 pt while the
+      button is 22 pt, and the rows between belong to the item; the screen's
+      top row is exactly `frame.maxY` and is owned; `frame.minY` (first row
+      under the menu bar) and `frame.maxX` (the neighbour's first column) are
+      not. `CGRect.contains` is wrong on both vertical edges. The item is as
+      wide as its text, so a frame read earlier is stale within a sampling
+      interval. A global monitor's `locationInWindow` is already in screen
+      coordinates (`window == nil`).
+    - **The note is taken only for clicks on the item**, so where item clicks
+      never reach a global monitor it stays a plain toggle.
+    - **Do not trade this for the animation's margin, a time window, or
+      `isShown` alone** — each is the defect again under a different load.
+    - **Verified on the fixed build** (bare release binary, same method):
+      re-click closes without reopening 3/3 never activated and 3/3 after
+      settings; 3/3 at each of centre, screen top row, y=1, the button's bottom
+      row and the last column; 3/3 by right-click, with the next click opening.
+      Active after a click inside: closed 12/12, and the click after that opened
+      9/9. The four outside surfaces 3/3 in all three states, inside click stays
+      open 3/3, own settings window 3/3 in all three variants. One spot does not
+      toggle, before or after: the panel's arrow overlaps the item's last rows
+      at its centre, and a click there is a click inside the panel (neither the
+      monitor nor the action fires; eight points to the left on the same row it
+      closed 3/3).
   - **Only a real machine can judge any of this.** Re-verify with the method
     above; a check that only clicks another app's window passes `.transient`
-    alone, and one that never re-clicks the status item passes the defect.
+    alone, one that never re-clicks the status item passes the re-click
+    defect, and one that never clicks inside the panel first never meets the
+    re-click whose action does not come.
 - **`isTemplate` only works on a button's image.** An image embedded in an
   attributed string ignores it and is drawn in whatever colour it carries, which
   is why the healthy menu-bar symbol rendered grey. Symbols go in

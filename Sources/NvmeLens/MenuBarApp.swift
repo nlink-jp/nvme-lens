@@ -17,6 +17,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
     private var outsideClickMonitor: Any?
+    private var panelToggle = PanelToggle()
     private let model: AppModel
     /// Held for the process lifetime. Without an activity assertion macOS puts a
     /// background-only (LSUIElement) app to sleep, the timer stops firing, and
@@ -44,6 +45,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         popover.behavior = .transient
         popover.animates = false
+        popover.delegate = self
         let hosting = NSHostingController(
             rootView: PanelView(
                 model: model,
@@ -108,10 +110,16 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     // MARK: - Panel
 
     @objc private func togglePanel() {
-        if popover.isShown {
-            closePanel()
-            return
+        // Not `isShown` alone: by the time this runs, the monitor below may
+        // already have closed the panel for this very click (see PanelToggle).
+        switch panelToggle.statusItemAction(panelShown: popover.isShown) {
+        case .open: showPanel()
+        case .close: closePanel()
+        case .none: syncOutsideClickMonitor()
         }
+    }
+
+    private func showPanel() {
         guard let button = statusItem.button else { return }
         model.refresh()
         updateStatusItem()
@@ -128,21 +136,48 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         // that takes activation — another app's window, or our own settings
         // window — and never on an empty stretch of the menu bar or another
         // process's non-activating panel. Whether the app had been activated
-        // before made no difference. So every global mouse-down closes it here.
-        // This monitor also receives a click on our own status item, before
-        // togglePanel runs — read AGENTS.md before changing either.
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown]
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.closePanel() }
-        }
+        // before made no difference. So every global mouse-down closes it.
+        syncOutsideClickMonitor()
     }
 
     private func closePanel() {
         popover.performClose(nil)
-        if let outsideClickMonitor {
-            NSEvent.removeMonitor(outsideClickMonitor)
-            self.outsideClickMonitor = nil
+        syncOutsideClickMonitor()
+    }
+
+    /// Every global mouse-down while the panel is shown — including, on macOS
+    /// 27.0, a click on our own status item, which reaches this monitor before
+    /// `togglePanel` runs. PanelToggle keeps that click from closing the panel
+    /// here and opening it again there.
+    private func globalMouseDown(at location: CGPoint) {
+        // The frame is read now: the item is as wide as its text.
+        let onStatusItem = statusItemOwns(
+            location, itemWindowFrame: statusItem.button?.window?.frame)
+        if panelToggle.globalMouseDown(panelShown: popover.isShown, onStatusItem: onStatusItem)
+            == .close
+        {
+            popover.performClose(nil)
+        }
+        syncOutsideClickMonitor()
+    }
+
+    /// Installed while the panel is shown, and kept past that only while a
+    /// closing click's action may still arrive. `popoverDidClose` lands here
+    /// too, so a close this class did not start (`.transient`) removes it.
+    private func syncOutsideClickMonitor() {
+        let needed = panelToggle.needsMonitor(panelShown: popover.isShown)
+        if needed, outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: [.leftMouseDown, .rightMouseDown]
+            ) { [weak self] event in
+                // A global monitor's event has no window, so this is already in
+                // screen coordinates. NSEvent is not Sendable; the point is.
+                let location = event.locationInWindow
+                MainActor.assumeIsolated { self?.globalMouseDown(at: location) }
+            }
+        } else if !needed, let monitor = outsideClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            outsideClickMonitor = nil
         }
     }
 
@@ -220,6 +255,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         application.delegate = delegate
         application.run()
         exit(0)
+    }
+}
+
+extension MenuBarApp: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        syncOutsideClickMonitor()
     }
 }
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Clicking the menu-bar item a second time did not close the panel** — it
+  vanished for a moment and came back (macOS 27). There the menu bar is hosted
+  by a separate system process, so one click reached the app twice: through the
+  outside-click monitor, which closed the panel, and then as the item's own
+  action, which found it closed and opened it again. The two are now matched up:
+  the second click closes the panel and the one after it opens it, wherever on
+  the item the click lands (the top row of the screen included), by either
+  mouse button, and whether or not nvme-lens is the active app
+
 ## v0.1.3 — 2026-08-25
 
 ### Fixed
