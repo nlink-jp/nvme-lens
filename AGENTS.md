@@ -79,6 +79,15 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   stated once), and `make verify-release` fails if the built bundle's sdk is not
   the current one. Signing, notarization and every test pass either way, so the
   gate is the only thing that can catch it.
+- **`make fmt` currently rewrites the whole tree — do not run it as a finishing
+  step.** The repo carries no `.swift-format`, so `swift format` applies its
+  defaults (2-space indentation, its own import spacing) to a codebase written
+  with 4: on 2026-09-20 (Swift 6.4 toolchain) it changed all 39 files under
+  `Sources/` and `Tests/`, about 4,700 lines each way, for a change that touched
+  three. Nothing is lost if it happens — restore the files you did not mean to
+  touch from HEAD by explicit path — but until a configuration that reproduces
+  the existing style with an empty diff is checked in, match the surrounding
+  code by hand.
 - **`smartctl` is a test oracle only.** Product code must never spawn it, assume
   it exists, or search `PATH` for it. Every unit test must pass on a machine
   with no smartmontools installed (ADR-0001 Decision 5).
