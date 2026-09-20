@@ -34,7 +34,7 @@ MACOS_MIN := $(shell sed -n -e 's/.*\.macOS(\.v\([0-9][0-9]*\)).*/\1.0/p' \
 MACOS_SDK := $(shell xcrun --sdk macosx --show-sdk-version)
 SDK_LINK_FLAGS := -Xlinker -platform_version -Xlinker macos -Xlinker $(MACOS_MIN) -Xlinker $(MACOS_SDK)
 
-.PHONY: build build-app package verify-release test fmt clean
+.PHONY: build build-app package verify-release test clean
 
 build:
 	@mkdir -p $(DIST_DIR)
@@ -87,9 +87,6 @@ verify-release:
 # Unit tests require no device and no smartmontools (ADR-0001 Decision 5).
 test:
 	swift test
-
-fmt:
-	swift format --in-place --recursive $(CURDIR)/Sources $(CURDIR)/Tests
 
 clean:
 	rm -rf $(DIST_DIR) .build

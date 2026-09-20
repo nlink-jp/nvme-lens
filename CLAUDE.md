@@ -18,4 +18,4 @@ Rules specific to this project that are easy to get wrong:
 - **Read-only.** Never add anything that changes drive state.
 - Keep logic in `NvmeLensCore`; `main.swift` stays a thin entry point.
 - `make build`, never `swift build`, for anything that produces an artifact.
-- Recursive rewrites take an absolute path (`make fmt` already does).
+- Recursive rewrites take an absolute path.

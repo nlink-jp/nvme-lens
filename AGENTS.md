@@ -19,7 +19,6 @@ make test       # swift test — no device, no smartmontools required
 make build-app  # assemble + sign dist/NvmeLens.app
 make package    # notarize + dist/nvme-lens-<version>-darwin-arm64.zip
 make verify-release  # gate: .notarized marker + stapler validate (run before upload)
-make fmt        # swift format (absolute paths, never a bare '.')
 make clean
 ```
 
@@ -79,15 +78,17 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   stated once), and `make verify-release` fails if the built bundle's sdk is not
   the current one. Signing, notarization and every test pass either way, so the
   gate is the only thing that can catch it.
-- **`make fmt` currently rewrites the whole tree — do not run it as a finishing
-  step.** The repo carries no `.swift-format`, so `swift format` applies its
-  defaults (2-space indentation, its own import spacing) to a codebase written
-  with 4: on 2026-09-20 (Swift 6.4 toolchain) it changed all 39 files under
-  `Sources/` and `Tests/`, about 4,700 lines each way, for a change that touched
-  three. Nothing is lost if it happens — restore the files you did not mean to
-  touch from HEAD by explicit path — but until a configuration that reproduces
-  the existing style with an empty diff is checked in, match the surrounding
-  code by hand.
+- **There is no `fmt` target, on purpose.** The code is 4-space and formatted by
+  hand; it was never written under swift-format, and no configuration reproduces
+  it. Measured on 2026-09-20 (Swift 6.4 toolchain): with `indentation` set to 4
+  the formatter still changes 25 files / 144 lines, and 9 files / 54 lines with
+  the line length relaxed as well — its pretty-printer re-lays-out line breaks,
+  and that is not configurable. The `fmt` target that used to be here ran with
+  no `.swift-format`, applied the tool's 2-space defaults, and rewrote all 39
+  files for a change that touched three. Match the surrounding code by hand. A
+  formatter can come back only together with its configuration and the one-time
+  `style:` commit that brings the tree in line (org CONVENTIONS → Scaffold
+  checklist → formatter hooks).
 - **`smartctl` is a test oracle only.** Product code must never spawn it, assume
   it exists, or search `PATH` for it. Every unit test must pass on a machine
   with no smartmontools installed (ADR-0001 Decision 5).
