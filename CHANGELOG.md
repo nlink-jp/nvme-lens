@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.4 — 2026-09-20
 
 ### Fixed
 
@@ -12,6 +12,14 @@
   the second click closes the panel and the one after it opens it, wherever on
   the item the click lands (the top row of the screen included), by either
   mouse button, and whether or not nvme-lens is the active app
+
+### Changed
+
+- The release build is linked against the current macOS SDK (27.0; v0.1.3 was
+  linked against 26.5). macOS chooses the generation of window chrome from that
+  field, so the History and Settings windows follow the system's current design
+  instead of the previous one. `make verify-release` now refuses a bundle whose
+  SDK stamp is not the current one
 
 ## v0.1.3 — 2026-08-25
 
