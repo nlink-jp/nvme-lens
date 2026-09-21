@@ -45,7 +45,7 @@ Sources/NvmeLensCore/     ← all logic; the parsers need no device
   TemperatureSeries.swift ← the panel's six-hour window
   MenuBarPresentation.swift ← what to say; never how it looks
   LoginItem.swift         ← status → control state, as a pure mapping
-  PanelToggle.swift       ← one click, two handlers (global monitor + button action): who closes, who must not reopen
+  PanelToggle.swift       ← one click, two events (global monitor + button action): who dismisses, who opens, and what the panel's own readings cannot tell
   Configuration.swift     ← thresholds, as a plain value the app fills in
   Report.swift            ← JSON/table rendering
   Version.swift           ← version resolution + fallback
@@ -134,9 +134,43 @@ tested; executable targets are awkward to import from tests. Keep logic out of
   on purpose: `list`/`status`/`sample`/`history` must keep working while
   the menu-bar app runs. Side effect: to run a `dist/` build's GUI,
   quit the installed instance first — a second copy now refuses to start.
+- **A click on the status item is decided by `PanelToggle` (`NvmeLensCore`), and
+  nothing reads the panel to do it.** Measured on the real app (macOS 27.0,
+  2026-09-21) with synthetic HID clicks and every event logged:
+  - **`NSPopover.isShown` stays true for about half a second after a close**,
+    until `popoverDidClose` — and that report arrives *after* a show that
+    followed it, so the delegate callback cannot be believed on its own either.
+    The panel window's `isVisible` goes false at once, but it is also false
+    between a show and the moment the panel appears (AppKit queues a show that
+    starts during a close animation behind it, about 0.4 s). **This was the
+    reported defect**: deciding from `isShown`, a re-click inside that half
+    second was read as "the panel is open" and closed it again, so the panel did
+    not open — 0 out of 10 at every gap tried on the release build, against 10
+    out of 10 at 130 ms and 200 ms with the fix.
+  - **The panel can only be opened from the button's action.** A show issued
+    from the monitor, on the mouse-down or on the mouse-up, was dismissed by
+    AppKit inside the same click, every time. The monitor's part is to dismiss.
+  - **One click produces two events and the second often does not come**: the
+    monitor sees it first, the action 23–41 ms later, and of eight
+    well-separated clicks eight were monitored and five produced an action (the
+    missing ones being clicks that closed the panel). So an action within
+    `PanelToggle.actionWindow` (0.1 s) of the monitor closing the panel for a
+    click on the item is that click's second event and does nothing. **Do not
+    pair the two events by order** — with one of them missing, "the action of
+    the click that just closed the panel" and "the action of the click that is
+    meant to open it" are the same event; an earlier fix did pair them and
+    swallowed clicks.
+  - **Residual, measured:** at a 60–100 ms gap the panel ended up closed once in
+    ten, when the dismissed click's action arrived after the window and was
+    taken for a click of its own. Two clicks that fast are one gesture, and the
+    alternative — a longer window — swallows the re-click, which is the defect
+    above. Pinned by `testAVeryFastDoubleClickCanEndUpClosed`.
+  - The rule that nothing decides from `isShown` is machine-checked by
+    `PanelReadingRuleTests`; the AppKit readings above are pinned by
+    `PopoverReadingsTests`.
 - **Outside-click dismissal does not rely on `.transient` alone.** A global
-  mouse-down monitor is installed while the panel is shown
-  (`syncOutsideClickMonitor`). What that rests on was measured on the real app
+  mouse-down monitor is installed at launch and kept for as long as the app
+  runs (`installOutsideClickMonitor`). What that rests on was measured on the real app
   (macOS 27.0, 2026-09-20; 3 clicks per cell unless noted) with synthetic HID
   clicks (`CGEvent` at `.cghidEventTap`), the status item's frame from the AX
   `AXExtrasMenuBar` of the pid, panel visibility from `CGWindowList`, the

@@ -73,6 +73,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             self?.startTimer(intervalSeconds: seconds)
         }
         startTimer(intervalSeconds: model.samplingIntervalSeconds)
+        installOutsideClickMonitor()
     }
 
     private func startTimer(intervalSeconds: Int) {
@@ -92,9 +93,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate()
-        // Termination goes on to close the panel's window, and popoverDidClose
-        // syncs the monitor once more: by then nothing may be awaited and
-        // nothing left to remove.
+        // Termination goes on to close the panel's window, which brings
+        // popoverDidClose here once more; the monitor is removed exactly once.
         panelToggle = PanelToggle()
         removeOutsideClickMonitor()
         if let activityToken { ProcessInfo.processInfo.endActivity(activityToken) }
@@ -114,12 +114,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     // MARK: - Panel
 
     @objc private func togglePanel() {
-        // Not `isShown` alone: by the time this runs, the monitor below may
-        // already have closed the panel for this very click (see PanelToggle).
-        switch panelToggle.statusItemAction(panelShown: popover.isShown) {
+        // Not `isShown`: that stays true for about half a second after a close,
+        // and reading it is what kept a re-click from opening the panel at all.
+        // This is also the only way the panel opens — a show issued from the
+        // monitor is dismissed within the same click (see PanelToggle).
+        switch panelToggle.statusItemAction(at: Date()) {
         case .open: showPanel()
         case .close: closePanel()
-        case .none: syncOutsideClickMonitor()
+        case .none: break
         }
     }
 
@@ -141,12 +143,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         // window — and never on an empty stretch of the menu bar or another
         // process's non-activating panel. Whether the app had been activated
         // before made no difference. So every global mouse-down closes it.
-        syncOutsideClickMonitor()
     }
 
+    /// From `togglePanel`, where the toggle has already recorded the close, and
+    /// from the History and Settings items, where it has not: `closeFromApp`
+    /// answers `.none` when there is nothing up, so this is safe either way.
     private func closePanel() {
+        _ = panelToggle.closeFromApp()
         popover.performClose(nil)
-        syncOutsideClickMonitor()
     }
 
     /// Every global mouse-down while the panel is shown — including, on macOS
@@ -157,20 +161,20 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         // The frame is read now: the item is as wide as its text.
         let onStatusItem = statusItemOwns(
             location, itemWindowFrame: statusItem.button?.window?.frame)
-        if panelToggle.globalMouseDown(panelShown: popover.isShown, onStatusItem: onStatusItem)
-            == .close
-        {
+        if panelToggle.globalMouseDown(onStatusItem: onStatusItem, at: Date()) == .close {
             popover.performClose(nil)
         }
-        syncOutsideClickMonitor()
     }
 
-    /// Installed while the panel is shown, and kept past that only while a
-    /// closing click's action may still arrive. `popoverDidClose` lands here
-    /// too, so a close this class did not start (`.transient`) removes it.
-    private func syncOutsideClickMonitor() {
-        let needed = panelToggle.needsMonitor(panelShown: popover.isShown)
-        if needed, outsideClickMonitor == nil {
+    /// Installed at launch and kept for as long as the app runs: it is what
+    /// dismisses the panel, including for a click on our own status item, whose
+    /// button action arrives 23–41 ms later and often not at all (measured —
+    /// see PanelToggle). `.transient` alone misses outside clicks that take no
+    /// activation (measured on macOS 27.0: it closed the panel for a click in a
+    /// window that takes activation, and never for an empty stretch of the menu
+    /// bar or another process's non-activating panel).
+    private func installOutsideClickMonitor() {
+        if outsideClickMonitor == nil {
             outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
                 matching: [.leftMouseDown, .rightMouseDown]
             ) { [weak self] event in
@@ -179,8 +183,6 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
                 let location = event.locationInWindow
                 MainActor.assumeIsolated { self?.globalMouseDown(at: location) }
             }
-        } else if !needed {
-            removeOutsideClickMonitor()
         }
     }
 
@@ -274,7 +276,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
 extension MenuBarApp: NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
-        syncOutsideClickMonitor()
+        // Arrives about half a second after the close, which can be after the
+        // panel has been opened again; `PanelToggle` tells the two apart.
+        panelToggle.panelReportedClose()
     }
 }
 

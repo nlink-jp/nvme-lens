@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Clicking the menu-bar item again right after the panel closed did nothing.**
+  The app asked macOS whether the panel was open, and macOS keeps answering
+  "open" for about half a second after it has closed (measured on macOS 27.0),
+  so the click was taken for "close it" and nothing happened. Clicking
+  repeatedly could leave the panel shut for as long as you kept clicking. The
+  app now keeps its own record of whether the panel is up, and a click a tenth
+  of a second after the panel closed opens it again. Same defect and same fix
+  as load-spinner and status-lens.
+
 ## v0.1.4 — 2026-09-20
 
 ### Fixed
