@@ -60,7 +60,7 @@ Sources/NvmeLens/
   SparklineView.swift     ← the panel's chart (AppKit drawing)
 Tests/NvmeLensCoreTests/  ← core
 Tests/NvmeLensTests/      ← the app target (symbol names must resolve)
-docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; ADRs share a basename)
+docs/{en,ja}/             ← RFP and ADRs (ja mirrors en; same stem, ja adds .ja.md)
 scripts/                  ← codesign / notarize (copied from org templates)
 Info.plist                ← ${APP_NAME}/${BUNDLE_ID}/${VERSION} substituted by make
 ```
@@ -302,6 +302,7 @@ Organization rules: https://github.com/nlink-jp/.github/blob/main/CONVENTIONS.md
 
 - Tests ship with the implementation, never after
 - `README.md` and `README.ja.md` change in the same commit
-- `docs/ja/*.ja.md` for prose; ADRs use the same basename in both
-  `docs/en/adr/` and `docs/ja/adr/` (four-digit, per-project numbering)
+- `docs/en/*.md` and `docs/ja/*.ja.md`, ADRs included: an ADR keeps the same
+  stem under `docs/en/adr/` and `docs/ja/adr/` (four-digit, per-project
+  numbering) and the Japanese side carries the `.ja.md` suffix
 - Small typed commits: `feat:`, `fix:`, `docs:`, `test:`, `chore:`

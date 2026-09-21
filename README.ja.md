@@ -101,7 +101,7 @@ CLI には設定がありません。1 回叩けば 1 回記録し、記録済�
 - macOS 14 以降、Apple Silicon
 - **root 不要。** 特権ヘルパーも daemon も使いません
 - **外部依存なし。** SMART は IOKit を直接呼んで取得します
-  （[ADR-0001](docs/ja/adr/0001-iokit-direct-smart-access.md)）
+  （[ADR-0001](docs/ja/adr/0001-iokit-direct-smart-access.ja.md)）
 
 ## ビルド
 
@@ -118,7 +118,7 @@ make package    # notarize してリリース用 zip を作成
 ## ドキュメント
 
 - [RFP](docs/ja/nvme-lens-rfp.ja.md) — 問題定義、仕様、開発計画
-- [ADR-0001](docs/ja/adr/0001-iokit-direct-smart-access.md) — SMART の取得に
+- [ADR-0001](docs/ja/adr/0001-iokit-direct-smart-access.ja.md) — SMART の取得に
   `smartctl` を使わず IOKit を直接呼ぶ理由
 - [実測ベースライン](docs/ja/reference/threshold-baseline.ja.md) — 既定閾値の根拠と、
   その測定が裏付けていない範囲

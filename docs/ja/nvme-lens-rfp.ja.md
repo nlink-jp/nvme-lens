@@ -99,7 +99,7 @@ SQLite。温度は分単位、寿命指標は日単位と粒度が混在し、�
 
 **開発時に限り** `smartctl` をパーサ検証の参照実装（テストオラクル）として使うが、
 **製品コードからは一切呼ばない**。利用者に smartmontools の導入を求めることはなく、
-smartmontools が無い環境でも単体テストは全て通る（[ADR-0001](adr/0001-iokit-direct-smart-access.md) Decision 5）。
+smartmontools が無い環境でも単体テストは全て通る（[ADR-0001](adr/0001-iokit-direct-smart-access.ja.md) Decision 5）。
 
 ## 3. Design Decisions
 
@@ -125,7 +125,7 @@ Go + Wails はクロスプラットフォーム性が利点だが、本ツール
 
 IOKit 直叩きなら外部依存ゼロで `.app` 単体で完結し、署名・notarize も単純になる。
 
-→ [ADR-0001: SMART の取得は smartctl 経由ではなく IOKit を直接呼ぶ](adr/0001-iokit-direct-smart-access.md)
+→ [ADR-0001: SMART の取得は smartctl 経由ではなく IOKit を直接呼ぶ](adr/0001-iokit-direct-smart-access.ja.md)
 
 ### 読み取り専用に徹する
 
